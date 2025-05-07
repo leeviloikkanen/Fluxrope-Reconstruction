@@ -5,7 +5,7 @@ from scipy.interpolate import RBFInterpolator
 from sklearn.neighbors import NearestNeighbors
 
 
-df = pd.read_csv('/home/leeviloi/fluxrope_kandi/plas_obs_vir_vg_b_full_45deg.csv', sep=',')
+df = pd.read_csv('plas_obs_vir_vg_b_full_45deg.csv', sep=',')
 times = df['Timeframe'].to_numpy()        # shape (T,)
 T = len(times)
 
@@ -169,7 +169,6 @@ Bz = Bq[:, 2].reshape(X.shape)
 #plot
 plt.figure(figsize=(6,6))
 cf = plt.contourf(xs, zs, Bz, levels=50, cmap='plasma')
-# each craft at (x_i, z_i) with y=Y0 might not lie exactly in the slice,
 plt.scatter(static_pos[:,0], static_pos[:,2],
             c='k', s=40, label='spacecraft')
 plt.colorbar(cf, label='$B_z$')
