@@ -553,9 +553,10 @@ def Wasser_3D_hist(sc_points, type = "filled"):
         #ax.set_title(rf"$W_{{\mathrm{{rel}}}} = {W_val}$")
         ax.grid(alpha=0.3)
         axes[0].legend(loc="upper right")
-        fig.tight_layout()
-        fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparision_comp_counts_3D_pos_{pos_idx}_no_den_type={type}_3.png")
+    fig.tight_layout()
+    fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
+    print("Everything worked")
+    #plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparision_comp_counts_3D_pos_{pos_idx}_no_den_type={type}_3.png")
   
     return
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
