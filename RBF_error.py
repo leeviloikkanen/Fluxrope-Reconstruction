@@ -153,14 +153,14 @@ YZ_Vlas = sample_slice_vlas(y, z, bary_vlas[0], "yz")
 #Wasserstein Distance per component for selected plane 
 
 def plane_wasserstein(rbf_tuple, sim_tuple, plane_name):
-    COMP_INDEX = {
-    "xy": (2, 3, 4),   # tuple = (X, Y,  Bx, By, Bz)
-    "xz": (2, 4, 3),   # tuple = (X, Z,  Bx, Bz, By)
-    "yz": (4, 2, 3),   # tuple = (Y, Z,  By, Bz, Bx)
+    idx_map = {
+    "xy": (2, 3, 4),  
+    "xz": (2, 4, 3),   
+    "yz": (4, 2, 3),  
     }
-    id_x, id_y, id_z = COMP_INDEX[plane_name]
+    id_x, id_y, id_z = idx_map[plane_name]
 
-    # reorder each tuple into canonical (Bx, By, Bz)
+    # reorder each into (Bx, By, Bz)
     Br = [rbf_tuple[idx] for idx in (id_x, id_y, id_z)]
     Bs = [sim_tuple[idx] for idx in (id_x, id_y, id_z)]
     rel_wass = {}
