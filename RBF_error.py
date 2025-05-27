@@ -4,6 +4,8 @@
 #RBF method and eroor analysis method"s used here outlined in paper: 
 #https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2023EA003369
 
+#NOTE: SOME FUNCTION HAVE NOT PROPERLY BEEN UPDATED SO THERE MIGHT BE SOME ERRORS (namely plot_hist_component_comparison() needs index map)
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,7 +29,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 20           
+pos_idx = 95           
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -321,7 +323,7 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
                 lw=1.8, label="Vlasiator")
             ax.hist(B_comp_RBF, bins=bins, histtype="step",
                 lw=1.2, label="RBF",)
-        comp_med = np.median(B_comp_RBF)
+        comp_med = np.median(B_comp_vlas)
 
         ax.axvline(comp_med, ls = "--", label = r"$\tilde{B}_{\text{vlas}}$")
         ax.set_xlabel(f"{label}")
@@ -428,7 +430,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes):
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
-    #plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos:{pos_idx}_time=1432_L={Lsize}_7.png")
+    plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
     return
 def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled"):
 
@@ -535,6 +537,16 @@ def Wasser_3D_hist(sc_points, type = "filled"):
         lo, hi = np.percentile(np.concatenate([B_comp_RBF, B_comp_vlas]), [0.5, 99.5])
         bins   = np.linspace(lo, hi, n_bins+1)
         
+        B_RBF_flat, B_vlas_flat = B_comp_RBF.ravel(), B_comp_vlas.ravel()
+
+        W1   = wasserstein_distance(B_RBF_flat, B_vlas_flat)
+
+        
+        comp_med = np.median(B_vlas_flat)
+        #normalizing wasserstein distance by comparison to single valued 
+        W_den = wasserstein_distance(B_vlas_flat, np.full_like(B_vlas_flat,comp_med))
+
+        relW = np.round(W1 /W_den,4)       
         #Density = true means that the histogram is normalize in to a probability function --> integral = 1 
         if type == "filled":
             ax.hist(B_comp_vlas, bins=bins, histtype="stepfilled",
@@ -546,19 +558,19 @@ def Wasser_3D_hist(sc_points, type = "filled"):
                 lw=1.8, label="Vlasiator")
             ax.hist(B_comp_RBF, bins=bins, histtype="step",
                 lw=1.2, label="RBF",)
-        comp_med = np.median(B_comp_RBF)
+        
 
         ax.axvline(comp_med, ls = "--", label = r"$\tilde{B}_{\text{vlas}}$")
         ax.set_xlabel(f"{label}")
-        #ax.set_title(rf"$W_{{\mathrm{{rel}}}} = {W_val}$")
+        ax.set_title(rf"$W_{{\mathrm{{rel}}}} = {relW}$")
         ax.grid(alpha=0.3)
         axes[0].legend(loc="upper right")
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0, 1, 0.93]) 
     fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
     print("Everything worked")
-    #plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparision_comp_counts_3D_pos_{pos_idx}_no_den_type={type}_3.png")
+    plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_3D_pos_{pos_idx}_no_den_type={type}_6.png")
   
     return
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-Wasser_3D_hist(points)
+#Wasser_3D_hist(points)
