@@ -1,7 +1,7 @@
 #This script was created by Leevi Loikkanen to do error analysis between Vlasiator simulation files 
 #and reconstructed magnetic fields from virtual spacecraft data using Radial Basis Functions  
 #by means of point-wise error and Wasserstein distances 
-#RBF method and eroor analysis method"s used here outlined in paper: 
+#RBF method and error analysis methods used here outlined in paper: 
 #https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2023EA003369
 
 #NOTE: SOME FUNCTION HAVE NOT PROPERLY BEEN UPDATED SO THERE MIGHT BE SOME ERRORS (namely plot_hist_component_comparison() needs index map)
@@ -29,7 +29,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 95           
+pos_idx = 20          
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -196,9 +196,9 @@ vlas_planes = [XY_Vlas,XZ_Vlas,YZ_Vlas]
 RBF_planes = [XY_RBF,XZ_RBF,YZ_RBF]  
 
 def error_perscentage(B_plane_RBF, B_plane_vlas):
-
-  
-
+    #The logic/naming here is wrong since depending on the plane the 
+    #order is not necessarily x,y,z but since the components match each other 
+    #and the absolute is only thing that matters, it works
     Pr, Qr, Bxr, Byr, Bzr = B_plane_RBF
     Pv, Qv, Bxv, Byv, Bzv = B_plane_vlas     
     if not np.allclose(Pr,Pv/1e3) and np.allclose(Qr,Qv/1e3):
@@ -298,6 +298,7 @@ def plot_point_wise_error():
     return
 
 def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"):
+    #FIX 
     n_bins = 40
     _, _, Bx_RBF, By_RBF, Bz_RBF = plane_RBF
     _, _, Bx_vlas,By_vlas,Bz_vlas = plane_Vlas
@@ -339,7 +340,7 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
 #plot_hist_component_comparison(XY_RBF,XY_Vlas, "xy")
 
 
-def plot_vlas_RBF_error(vlas_planes, rbf_planes):
+def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
     err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0])
     err_xz = error_perscentage(rbf_planes[1],vlas_planes[1])
     err_yz =error_perscentage(rbf_planes[2],vlas_planes[2])
@@ -430,9 +431,10 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes):
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
-    plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
+    if save == True:
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
     return
-def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled"):
+def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
 
     fig, axes = plt.subplots(3,3, figsize = (12,10), constrained_layout = True)
     n_bins = 40
@@ -480,9 +482,10 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled"):
             if i == 0 and j == 0:
                 ax.legend(loc="upper right", fontsize="small")
     fig.suptitle(f"Histograms of component comparisons at pos {pos_idx}, time = 1432s, L={Lsize}")
-    plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_3x3_L={Lsize}_time=1432s_pos={pos_idx}_CORRECT.png")
+    if save == True:
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_3x3_L={Lsize}_time=1432s_pos={pos_idx}_CORRECT.png")
     return
-def Wasser_3D_hist(sc_points, type = "filled"):
+def Wasser_3D_hist(sc_points, type = "filled", save = True):
     nx, ny, nz = 60, 60, 60
     lil = 0.1*R_e
     x = np.linspace(sc_points[:,0].min(),sc_points[:,0].max(),nx)
@@ -568,9 +571,16 @@ def Wasser_3D_hist(sc_points, type = "filled"):
     fig.tight_layout(rect=[0, 0, 1, 0.93]) 
     fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
     print("Everything worked")
-    plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_3D_pos_{pos_idx}_no_den_type={type}_6.png")
-  
+    if save == True:
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png")
+    
+    return
+
+def W_rel_stats():
+    #modify wasser functions to return wasser stats
+    #loop through all pos indexes and gather stats
+    #plot in histogram
     return
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(points)
+Wasser_3D_hist(points)

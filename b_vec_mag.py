@@ -20,6 +20,7 @@ sc5 = [ 37582431.81386579, -69437431.81386578,910142.85714286]
 sc6 = [ 37025085.41560608, -69994778.21212548,-455071.42857143]
 sc7 = [ 38139778.21212549, -68880085.4156061,-455071.42857143]
 """
+#Virtual Spacecraft Constellation
 #z-axis 58 deg
 sc1 = np.array([6.0, -11.0, 0.0]) * R_e
 sc2 = np.array([6.52532199, -10.14909648, 1.0]) * R_e
@@ -30,6 +31,8 @@ sc6 = np.array([5.96977399, -10.81345061, -0.07142857]) * R_e
 sc7 = np.array([6.18031801, -10.94343409, -0.07142857]) * R_e
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
+#Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
+#Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
     
     R_e = 6371000 
