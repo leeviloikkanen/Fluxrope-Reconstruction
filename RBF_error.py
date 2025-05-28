@@ -29,7 +29,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 20          
+pos_idx = 98          
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -64,9 +64,8 @@ rbf = RBFInterpolator(
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
 cluster_now = row[pos_cols].to_numpy().reshape(7, 3) / 1000.0     
-bary_rbf = cluster_now.mean(axis=0)                             
+bary_rbf = cluster_now.mean(axis=0)     
 
-                                      
 
 def sample_slice(coord1, coord2, const_coord, plane):
     if plane == "xy":
@@ -93,7 +92,6 @@ def sample_slice(coord1, coord2, const_coord, plane):
         return Y, Z, By, Bz, Bx                                   
     
 
-
 x = np.linspace(bary_rbf[0]-L_rbf, bary_rbf[0]+L_rbf, nx)   
 y = np.linspace(bary_rbf[1]-L_rbf, bary_rbf[1]+L_rbf, ny)
 z = np.linspace(bary_rbf[2]-L_rbf, bary_rbf[2]+L_rbf, ny)
@@ -115,6 +113,7 @@ bary_vlas    = points.mean(axis=0)
 x = np.linspace(bary_vlas[0]-L_vlas, bary_vlas[0]+L_vlas, nx)
 y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
 z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)
+
 
 #function to extract meshgrids of simulation data in different planes for reference 
 def sample_slice_vlas(coord1, coord2, const_coord, plane):
@@ -182,15 +181,16 @@ def plane_wasserstein(rbf_tuple, sim_tuple, plane_name):
     rel_wass["plane"] = plane_name
     return rel_wass
 
-
 results = []
 results.append(plane_wasserstein(XY_RBF, XY_Vlas, "xy"))
 results.append(plane_wasserstein(XZ_RBF, XZ_Vlas, "xz"))
 results.append(plane_wasserstein(YZ_RBF, YZ_Vlas, "yz"))
 
 df_W = pd.DataFrame(results).set_index("plane")
+"""
 print(f"Wasserstein values at position {pos_idx}")
 print(df_W)
+"""
 
 vlas_planes = [XY_Vlas,XZ_Vlas,YZ_Vlas]
 RBF_planes = [XY_RBF,XZ_RBF,YZ_RBF]  
@@ -337,8 +337,22 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparision_comp_counts_{plane}_pos_{pos_idx}_no_den_type={type}.png")
     return
 
-#plot_hist_component_comparison(XY_RBF,XY_Vlas, "xy")
 
+def plot_any_plane(norm_vec):
+    #outline:
+    #  -gather planes along normal to provided vector
+    #  -calculate error using error percentage function (any plane should work)
+    #  -plot (1,3) of streamlines and error
+    n = np.asarray(norm_vec)
+    n = n/np.linalg.norm(n)
+    #Logic here is to choose a arbitrary helper vector to calculate crossproduct with
+    #then calculate crossproduct with new vector (u) and norm to get another vector (v) also
+    #perpendicular to n so u and v form the plane perpendicular to n 
+    helper = np.array([1,0,0] if abs(n[0]<0.9) else np.array([0,1,0]))
+    u = np.cross(n,helper)
+    u = u/np.linalg.norm(u)
+
+    return
 
 def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
     err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0])
@@ -431,9 +445,11 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
-    if save == True:
+    if save:
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
     return
+
+
 def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
 
     fig, axes = plt.subplots(3,3, figsize = (12,10), constrained_layout = True)
@@ -482,16 +498,20 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
             if i == 0 and j == 0:
                 ax.legend(loc="upper right", fontsize="small")
     fig.suptitle(f"Histograms of component comparisons at pos {pos_idx}, time = 1432s, L={Lsize}")
-    if save == True:
+    if save:
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_3x3_L={Lsize}_time=1432s_pos={pos_idx}_CORRECT.png")
     return
-def Wasser_3D_hist(sc_points, type = "filled", save = True):
+
+
+def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx):
+    if path == None:
+        path = f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
     nx, ny, nz = 60, 60, 60
     lil = 0.1*R_e
     x = np.linspace(sc_points[:,0].min(),sc_points[:,0].max(),nx)
     y = np.linspace(sc_points[:,1].min(),sc_points[:,1].max(),ny)
     z = np.linspace(sc_points[:,2].min(),sc_points[:,2].max(),nz)
-    
+    W_rels = []
     X, Y, Z = np.meshgrid(x,y,z, indexing="ij")
     
     pts = np.column_stack([X.ravel(),Y.ravel(),Z.ravel()])
@@ -544,12 +564,12 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True):
 
         W1   = wasserstein_distance(B_RBF_flat, B_vlas_flat)
 
-        
         comp_med = np.median(B_vlas_flat)
         #normalizing wasserstein distance by comparison to single valued 
         W_den = wasserstein_distance(B_vlas_flat, np.full_like(B_vlas_flat,comp_med))
 
         relW = np.round(W1 /W_den,4)       
+        W_rels.append(relW)
         #Density = true means that the histogram is normalize in to a probability function --> integral = 1 
         if type == "filled":
             ax.hist(B_comp_vlas, bins=bins, histtype="stepfilled",
@@ -570,17 +590,71 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True):
         axes[0].legend(loc="upper right")
     fig.tight_layout(rect=[0, 0, 1, 0.93]) 
     fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
-    print("Everything worked")
-    if save == True:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png")
+
+    if save:
+        plt.savefig(path)
+    plt.close()
+    return tuple(W_rels)
+
+
+def W_rel_stats(save = True, anim = False):
+    wx = []
+    wy = []
+    wz = []
+    for pos in range(100):
+        #location of spacecrafts at desired index
+        if anim:
+            anim_path= f"/home/leeviloi/fluxrope_thesis/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+        row     = df.loc[df["Position_Index"] == pos].iloc[0]
+        points  = row[pos_cols].to_numpy().reshape(7, 3) 
     
+        w_rel_x, w_rel_y, w_rel_z = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos)
+        #Not relavant for code to work
+        #Just wanted to see where outliers were
+        if w_rel_x>0.55:
+            print(f"W_x = {w_rel_x} at {pos}")
+
+        if w_rel_y>0.55:
+            print(f"W_y = {w_rel_y} at {pos}")
+
+        if w_rel_z>0.55:
+            print(f"W_z = {w_rel_z} at {pos}")
+        wx.append(w_rel_x)
+        wy.append(w_rel_y)
+        wz.append(w_rel_z)
+    fig, axes = plt.subplots(1, 3, figsize=(12,3.5), constrained_layout=True)
+    series  = (wx, wy, wz)
+    labels  = ("$W_{\\mathrm{rel},x}$", "$W_{\\mathrm{rel},y}$", "$W_{\\mathrm{rel},z}$")
+
+    for ax, w, lab in zip(axes, series, labels):
+        w = np.asarray(w)
+        p90 = np.percentile(w, 90)          
+        ax.axvline(p90, color="crimson", ls="--", lw=1.8,
+               label=f"90%")
+        ax.hist(w, bins=25, color="steelblue", alpha=0.7)
+        ax.set_xlabel(lab)
+        ax.set_ylabel("Count")
+        ax.grid(alpha=0.3)
+    axes[0].legend(loc= "upper right")
+    fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
+                fontsize=14)    
+    if save: 
+        plt.savefig("/home/leeviloi/fluxrope_thesis/W_rel_stats_3D.png")
+  
+    return
+#Animation functions
+def full_comp_anim():
+    #Function to loop:full_vlas_RBF_error()
+    #Logic: Loop through all position indecies and save a plot into folder
+    #Later create animation of photos in said folder using ffmpeg command
+    #Needed: extract planes at each position
     return
 
-def W_rel_stats():
-    #modify wasser functions to return wasser stats
-    #loop through all pos indexes and gather stats
-    #plot in histogram
-    return
+######
+#Main#
+######
+    
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-Wasser_3D_hist(points)
+#Wasser_3D_hist(points)
+W_rel_stats(save = False, anim= True)
