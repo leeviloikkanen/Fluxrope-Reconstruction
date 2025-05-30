@@ -68,6 +68,12 @@ bary_rbf = cluster_now.mean(axis=0)
 
 
 def sample_slice(coord1, coord2, const_coord, plane):
+    """
+    main thing to note about this function is that the output
+    order of coordinates is dependant on chosen plane
+    ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
+    Out of plane component will always be last
+    """
     if plane == "xy":
         X, Y = np.meshgrid(coord1, coord2)                           
         pts  = np.column_stack([X.ravel(), Y.ravel(),
@@ -117,7 +123,12 @@ z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)
 
 #function to extract meshgrids of simulation data in different planes for reference 
 def sample_slice_vlas(coord1, coord2, const_coord, plane):
-
+    """
+    main thing to note about this function is that the output
+    order of coordinates is dependant on chosen plane
+    ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
+    Out of plane component will always be last
+    """
     if plane == "xy":
         X, Y = np.meshgrid(coord1, coord2)                 
         pts  = np.column_stack([X.ravel(), Y.ravel(),
@@ -153,7 +164,11 @@ YZ_Vlas = sample_slice_vlas(y, z, bary_vlas[0], "yz")
 
 #Wasserstein Distance per component for selected plane 
 
-def plane_wasserstein(rbf_tuple, sim_tuple, plane_name):
+def plane_wasserstein(rbf_plane, vlas_plane, plane_name):
+    """
+    Calculates the 1D Wasserstein distance between
+    RBF and Vlasiator B components in a given plane
+    """
     idx_map = {
     "xy": (2, 3, 4),  
     "xz": (2, 4, 3),   
@@ -162,8 +177,8 @@ def plane_wasserstein(rbf_tuple, sim_tuple, plane_name):
     id_x, id_y, id_z = idx_map[plane_name]
 
     # reorder each into (Bx, By, Bz)
-    Br = [rbf_tuple[idx] for idx in (id_x, id_y, id_z)]
-    Bs = [sim_tuple[idx] for idx in (id_x, id_y, id_z)]
+    Br = [rbf_plane[idx] for idx in (id_x, id_y, id_z)]
+    Bs = [vlas_plane[idx] for idx in (id_x, id_y, id_z)]
     rel_wass = {}
     for comp, B_RBF, B_vlas in zip("xyz", Br, Bs):
 
@@ -196,9 +211,11 @@ vlas_planes = [XY_Vlas,XZ_Vlas,YZ_Vlas]
 RBF_planes = [XY_RBF,XZ_RBF,YZ_RBF]  
 
 def error_perscentage(B_plane_RBF, B_plane_vlas):
-    #The logic/naming here is wrong since depending on the plane the 
-    #order is not necessarily x,y,z but since the components match each other 
-    #and the absolute is only thing that matters, it works
+    """
+    The logic/naming here is wrong since depending on the plane the 
+    order is not necessarily x,y,z but since the components match each other 
+    and the absolute is only thing that matters, it works
+    """
     Pr, Qr, Bxr, Byr, Bzr = B_plane_RBF
     Pv, Qv, Bxv, Byv, Bzv = B_plane_vlas     
     if not np.allclose(Pr,Pv/1e3) and np.allclose(Qr,Qv/1e3):
@@ -248,6 +265,12 @@ axs.margins(0)
 #PLOTTING#
 ##########
 def plot_point_wise_error():
+    """
+    Plots all 3 planes of point-wise errors between vlasiator and RBF 
+    at a simulation position.
+    TODO: have input be the planes instead of using specificied planes already
+    NOTE full_rbf_vlas_comp more up-to-date use of same function
+    """
     fig, axes = plt.subplots(1, 3, figsize=(20, 6), constrained_layout=True)
 
     err_xy =  error_perscentage(XY_RBF,XY_Vlas)
@@ -298,7 +321,11 @@ def plot_point_wise_error():
     return
 
 def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"):
-    #FIX 
+    """
+    Function plotting histograms of components of RBF and Vlasiator on a give plane
+    and also the plane's Wasserstein distance for each component
+    TODO Fix indexing issue between plane output and component decomposition 
+    """
     n_bins = 40
     _, _, Bx_RBF, By_RBF, Bz_RBF = plane_RBF
     _, _, Bx_vlas,By_vlas,Bz_vlas = plane_Vlas
@@ -339,10 +366,12 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
 
 
 def plot_any_plane(norm_vec):
-    #outline:
-    #  -gather planes along normal to provided vector
-    #  -calculate error using error percentage function (any plane should work)
-    #  -plot (1,3) of streamlines and error
+    """
+    outline:
+      -gather planes along normal to provided vector
+      -calculate error using error percentage function (any plane should work)
+      -plot (1,3) of streamlines and error
+    """
     n = np.asarray(norm_vec)
     n = n/np.linalg.norm(n)
     #Logic here is to choose a arbitrary helper vector to calculate crossproduct with
@@ -355,6 +384,9 @@ def plot_any_plane(norm_vec):
     return
 
 def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
+    """
+
+    """
     err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0])
     err_xz = error_perscentage(rbf_planes[1],vlas_planes[1])
     err_yz =error_perscentage(rbf_planes[2],vlas_planes[2])
@@ -451,7 +483,8 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
 
 
 def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
-
+    """
+    """
     fig, axes = plt.subplots(3,3, figsize = (12,10), constrained_layout = True)
     n_bins = 40
     fig.dpi = 150
@@ -504,6 +537,9 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
 
 
 def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx):
+    """
+    This function creates 
+    """
     if path == None:
         path = f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
     nx, ny, nz = 60, 60, 60
@@ -595,9 +631,27 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
         plt.savefig(path)
     plt.close()
     return tuple(W_rels)
+def extrapolation_limit():
+    """
+    Outline 
+       -method to calculate Wasserstein distance + average pointwise error for given distance from the convex hull
+           -use idea from Wasser_3D_hist for 3D extraction of data
+           -one method for point-wise error could be % of points >20% error
+           -distance from convex hull? 
+           -signed distance function could be helpful
+           -scale error significance with B strenght? since close by largest error due to magnetopause location 
+
+       -vary distance starting from larger then expected then use that dataset to narrow down
+        the distance till it fits the set requirements
+       -return the max radius for valid extrapolation
+    """
+    distance = 0 
+    return distance
 
 
 def W_rel_stats(save = True, anim = False):
+    """
+    """
     wx = []
     wy = []
     wz = []
@@ -611,6 +665,7 @@ def W_rel_stats(save = True, anim = False):
         w_rel_x, w_rel_y, w_rel_z = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos)
         #Not relavant for code to work
         #Just wanted to see where outliers were
+        """
         if w_rel_x>0.55:
             print(f"W_x = {w_rel_x} at {pos}")
 
@@ -619,6 +674,7 @@ def W_rel_stats(save = True, anim = False):
 
         if w_rel_z>0.55:
             print(f"W_z = {w_rel_z} at {pos}")
+        """
         wx.append(w_rel_x)
         wy.append(w_rel_y)
         wz.append(w_rel_z)
@@ -642,12 +698,15 @@ def W_rel_stats(save = True, anim = False):
         plt.savefig("/home/leeviloi/fluxrope_thesis/W_rel_stats_3D.png")
   
     return
+
 #Animation functions
 def full_comp_anim():
-    #Function to loop:full_vlas_RBF_error()
-    #Logic: Loop through all position indecies and save a plot into folder
-    #Later create animation of photos in said folder using ffmpeg command
-    #Needed: extract planes at each position
+    """
+    Function to loop:full_vlas_RBF_error()
+    Logic: Loop through all position indecies and save a plot into folder
+    Later create animation of photos in said folder using ffmpeg command
+    Needed: extract planes at each position
+    """
     return
 
 ######
@@ -657,4 +716,3 @@ def full_comp_anim():
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(points)
-W_rel_stats(save = False, anim= True)
