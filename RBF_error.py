@@ -29,7 +29,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 98          
+pos_idx = 20          
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -38,6 +38,11 @@ sc_names  = [f"sc{i}" for i in range(1, 8)]
 pos_cols  = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"] for sc in sc_names], [])
 B_cols    = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"] for sc in sc_names], [])
 
+all_points = df[pos_cols].to_numpy().reshape(T * 7, 3) 
+
+start_idx = 10
+end_idx   = 91 
+selected_points = all_points[start_idx*7:end_idx*7]
 #####
 #RBF#
 #####
@@ -60,7 +65,12 @@ rbf = RBFInterpolator(
     epsilon=epsilon,
     smoothing=0.0
 )
+def RBF_missing_data():
+    """
+    Outline: 
 
+    """
+    return
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
 cluster_now = row[pos_cols].to_numpy().reshape(7, 3) / 1000.0     
@@ -210,7 +220,7 @@ print(df_W)
 vlas_planes = [XY_Vlas,XZ_Vlas,YZ_Vlas]
 RBF_planes = [XY_RBF,XZ_RBF,YZ_RBF]  
 
-def error_perscentage(B_plane_RBF, B_plane_vlas):
+def error_perscentage(B_plane_RBF, B_plane_vlas,rel_error =True):
     """
     The logic/naming here is wrong since depending on the plane the 
     order is not necessarily x,y,z but since the components match each other 
@@ -226,45 +236,38 @@ def error_perscentage(B_plane_RBF, B_plane_vlas):
 
     dB_mag = np.sqrt(dBx**2 + dBy**2 + dBz**2)   
     Bv_mag = np.sqrt(Bxv**2+Byv**2+Bzv**2)
-    error_per = 100*dB_mag/Bv_mag
-    return Pr, Qr, error_per
-
-#test = error_perscentage(XY_RBF, XY_Vlas)
+    if rel_error:
+        error_per = 100*dB_mag/Bv_mag
+    else: 
+        error_per = dB_mag
+    return Pr, Qr, error_per #, Bv_mag
 """
-threshold = 220.0     # %
-mask = error_per > threshold
+TEST PLOT to compare how the absolute error is distributed in the planes
+Xr, Yr, error_per, Bv_mag = error_perscentage(XY_RBF, XY_Vlas, rel_error=False)
 
-if mask.any():
-    idx      = np.argwhere(mask)          
-    npoints  = idx.shape[0]
-    print(f"{npoints} points with error {threshold}%:")
-    print("    X   Y    dB   B_vlas   %")
-    for k, (i, j) in enumerate(idx):
-        if k == 20:                       
-            break
-        x_km = Xr[i, j] / 1e3            
-        y_km = Yr[i, j] / 1e3
-        print(f"    {x_km:7.1f}  {y_km:7.1f}   {dB_mag[i,j]:8.3g}   "
-              f"{Bv_mag[i,j]:7.3g}   {error_per[i,j]:6.1f}")
-else:
-    print(f"No points have {threshold}% error.")
-"""
-"""
-fig, axs = plt.subplots(1,3, figsize = (7,6))
+fig, axs = plt.subplots(1, 2, figsize=(10, 5))
 
-contour = axs.contourf(Xr/1e3,Yr/1e3, error_per, 40, cmap = "viridis")
+contour = axs[0].contourf(Xr / 1e3, Yr / 1e3, error_per, 40, cmap="viridis")
+contour1 = axs[1].contourf(Xr / 1e3, Yr / 1e3, Bv_mag, 40, cmap="viridis")
 
-fig.colorbar(contour, ax=axs, label = " {%} error")
-axs.set_aspect("equal")
-axs.set_xlabel("X 10³ km")
-axs.set_ylabel("Y 10³ km")
-axs.margins(0)
-#plt.savefig("/home/leeviloi/scripts_useful/error_test_xy_%_L=1.2_pos=50.png")
+fig.colorbar(contour, ax=axs[0], label="ABS error")
+fig.colorbar(contour1, ax=axs[1], label="ABS B vlas")
+
+for ax in axs:
+    ax.set_aspect("equal")
+    ax.set_xlabel("X [10³ km]")
+    ax.set_ylabel("Y [10³ km]")
+    ax.margins(0)
+
+plt.tight_layout()
+plt.savefig("/home/leeviloi/scripts_useful/error_test_xy_abs_L=1.2_pos=20_2.png")
+plt.show()
 """
+
 ##########
 #PLOTTING#
 ##########
-def plot_point_wise_error():
+def plot_point_wise_error(save = True):
     """
     Plots all 3 planes of point-wise errors between vlasiator and RBF 
     at a simulation position.
@@ -317,7 +320,8 @@ def plot_point_wise_error():
                 orientation="vertical", label="Error %")
     fig.suptitle(f"Relative error at Position = {pos_idx} at {t}s", fontsize=16)
 
-    #plt.savefig(f"/home/leeviloi/fluxrope_thesis/error_threeslice_L=1.2_pos={pos_idx}_1432s.png")
+    if save: 
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/error_threeslice_L=1.2_pos={pos_idx}_1432s.png")
     return
 
 def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"):
@@ -383,13 +387,13 @@ def plot_any_plane(norm_vec):
 
     return
 
-def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
+def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True):
     """
 
     """
-    err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0])
-    err_xz = error_perscentage(rbf_planes[1],vlas_planes[1])
-    err_yz =error_perscentage(rbf_planes[2],vlas_planes[2])
+    err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0], rel_error=rel_error)
+    err_xz = error_perscentage(rbf_planes[1],vlas_planes[1],rel_error=rel_error)
+    err_yz =error_perscentage(rbf_planes[2],vlas_planes[2], rel_error=rel_error)
     fig, axes = plt.subplots(3,3,figsize = (13,11), constrained_layout=True)
     fig.dpi = 500
     panels = [
@@ -475,6 +479,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
                     "RBF",
                     "point-wise error (%)"]):
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
+
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
     if save:
@@ -484,10 +489,14 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True):
 
 def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
     """
+    For a collections of xy, xz, yz planes from vlasiator and the RBF reconstruction
+    at a certain position index, this function creates a 3x3 plot of histograms showing
+    the comparisons of component counts in said planes. 
     """
     fig, axes = plt.subplots(3,3, figsize = (12,10), constrained_layout = True)
     n_bins = 40
     fig.dpi = 150
+    #index map since sample_plane and sample_vlas_plane output form
     idx_map = {"xy": (2, 3, 4),
             "xz": (2, 4, 3),
             "yz": (4, 2, 3)}
@@ -536,17 +545,22 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
     return
 
 
-def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx):
+def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx, buffer = 0, error_cutoff = 20):
     """
-    This function creates 
+    This function creates a three histogram plots of the values of the components in 
+    RBF reconstruction and Vlasiator data inside a convex hull made of the virtual 
+    spacecraft constellation. The function also prints the fraction of points that are
+    below a relative error cutoff.
+
+    Return: (Wasser_x, Wasser_y, Wasser_z) 
     """
     if path == None:
         path = f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
     nx, ny, nz = 60, 60, 60
-    lil = 0.1*R_e
-    x = np.linspace(sc_points[:,0].min(),sc_points[:,0].max(),nx)
-    y = np.linspace(sc_points[:,1].min(),sc_points[:,1].max(),ny)
-    z = np.linspace(sc_points[:,2].min(),sc_points[:,2].max(),nz)
+    lil = buffer*R_e
+    x = np.linspace(sc_points[:,0].min()-lil,sc_points[:,0].max()+lil,nx)
+    y = np.linspace(sc_points[:,1].min()-lil,sc_points[:,1].max()+lil,ny)
+    z = np.linspace(sc_points[:,2].min()-lil,sc_points[:,2].max()+lil,nz)
     W_rels = []
     X, Y, Z = np.meshgrid(x,y,z, indexing="ij")
     
@@ -561,7 +575,6 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     pts = pts[inside]
     #Keep the index for later
   
-
     Bxyz_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", pts)
     
     Bx_vlas = np.zeros((nx, ny, nz)) * np.nan
@@ -584,6 +597,30 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     B_RBF = [Bx_RBF.ravel(), By_RBF.ravel(),Bz_RBF.ravel()]
     B_vlas =[Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()]
     
+    #Point-wise error inside the Convex Hull  
+    #USED also to check validity of extrapolation_limit() SDF
+    dBx = B_RBF[0] - B_vlas[0]
+    dBy = B_RBF[1] - B_vlas[1]
+    dBz = B_RBF[2] - B_vlas[2]
+
+    dB_mag = np.sqrt(dBx**2 + dBy**2 + dBz**2)   
+    Bv_mag = np.sqrt(B_vlas[0]**2+B_vlas[1]**2+B_vlas[2]**2)
+    #Get rid of Nans
+    valid_mask = np.isfinite(dB_mag) & np.isfinite(Bv_mag) & (Bv_mag > 0)
+    
+    error_per = np.full_like(Bv_mag, np.nan)
+ 
+    error_per[valid_mask] = 100 * dB_mag[valid_mask] / Bv_mag[valid_mask]
+    good_mask = error_per < error_cutoff
+
+    error_num = error_per[good_mask]
+
+    fraction = len(error_num) / np.count_nonzero(valid_mask)
+
+    print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f}")
+    
+
+    #Plotting
     fig, axes = plt.subplots(1,3, figsize=(12, 3.5))
     labels = ["$B_x$","$B_y$","$B_z$"]
     axis = ["x","y","z"]
@@ -631,7 +668,11 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
         plt.savefig(path)
     plt.close()
     return tuple(W_rels)
-def extrapolation_limit():
+
+
+def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 50):
+    import trimesh
+    from scipy.spatial import ConvexHull, Delaunay
     """
     Outline 
        -method to calculate Wasserstein distance + average pointwise error for given distance from the convex hull
@@ -643,14 +684,128 @@ def extrapolation_limit():
 
        -vary distance starting from larger then expected then use that dataset to narrow down
         the distance till it fits the set requirements
-       -return the max radius for valid extrapolation
+    Return
     """
-    distance = 0 
-    return distance
+    Dis_max = Dis_max*R_e
+    nx, ny, nz = 60, 60, 60
+    #Wraps thighly around constellation so max number of points are used
+    if inner:
+        lil = 0 
+    else:
+        lil = 1.5*Dis_max
 
+    x = np.linspace(sc_points[:, 0].min()-lil, sc_points[:, 0].max()+lil, nx)
+    y = np.linspace(sc_points[:, 1].min()-lil, sc_points[:, 1].max()+lil, ny)
+    z = np.linspace(sc_points[:, 2].min()-lil, sc_points[:, 2].max()+lil, nz)
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    pts = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+
+    hull = ConvexHull(sc_points)
+    faces = hull.simplices
+    vertices = sc_points
+    #Signed Distance Function
+    mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
+    closest_pts, unsigned_dist, _ = mesh.nearest.on_surface(pts)
+
+    inside = mesh.contains(pts)
+    signed_dist = unsigned_dist * np.where(inside, -1.0, 1.0)
+    sdf_grid = signed_dist.reshape((nx, ny, nz))
+    
+    D = Dis_max
+    if inner: 
+        shell_mask = (signed_dist <= 0)
+    else: 
+        shell_mask = (signed_dist > 0) & (signed_dist < D)
+    pts_in_shell = pts[shell_mask]
+
+    Bxyz_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", pts_in_shell)
+    Bxyz_RBF = rbf(pts_in_shell / 1000.0)  
+
+    #Gathering data and calculating error
+    Bx_vlas = np.full((nx, ny, nz), np.nan)
+    By_vlas = np.full((nx, ny, nz), np.nan)
+    Bz_vlas = np.full((nx, ny, nz), np.nan)
+
+    Bx_RBF = np.full((nx, ny, nz), np.nan)
+    By_RBF = np.full((nx, ny, nz), np.nan)
+    Bz_RBF = np.full((nx, ny, nz), np.nan)
+
+    shell_idx = shell_mask.reshape((nx, ny, nz))
+
+    Bx_vlas[shell_idx] = Bxyz_vlas[:, 0]
+    By_vlas[shell_idx] = Bxyz_vlas[:, 1]
+    Bz_vlas[shell_idx] = Bxyz_vlas[:, 2]
+
+    Bx_RBF[shell_idx] = Bxyz_RBF[:, 0]
+    By_RBF[shell_idx] = Bxyz_RBF[:, 1]
+    Bz_RBF[shell_idx] = Bxyz_RBF[:, 2]
+
+    B_RBF = [Bx_RBF.ravel(), By_RBF.ravel(),Bz_RBF.ravel()]
+    B_vlas =[Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()]
+    #error 
+    dBx = B_RBF[0] - B_vlas[0]
+    dBy = B_RBF[1] - B_vlas[1]
+    dBz = B_RBF[2] - B_vlas[2]
+
+    dB_mag = np.sqrt(dBx**2 + dBy**2 + dBz**2)   
+    Bv_mag = np.sqrt(B_vlas[0]**2+B_vlas[1]**2+B_vlas[2]**2)
+    #Get rid of Nans
+    valid_mask = np.isfinite(dB_mag) & np.isfinite(Bv_mag) & (Bv_mag > 0)
+
+    error_per = np.full_like(Bv_mag, np.nan)
+    error_per[valid_mask] = 100 * dB_mag[valid_mask] / Bv_mag[valid_mask]
+    
+    good_mask = error_per < error_cutoff
+    error_num = error_per[good_mask]
+
+    fraction = len(error_num) / np.count_nonzero(valid_mask)
+    if inner: 
+        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} inside constellation")
+    else:
+        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} at distance {Dis_max/1000:.1f} km from constellation")
+    
+    return fraction, error_cutoff
+def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15):
+    """
+    Suggestion: instead of just making the shell larger could be smart to 
+    see the fraction of values inside the increase distance shell instead the 
+    whole shell. 
+    | shell1 | shell2 | shell3 | 
+       0.823    0.654    0.43
+    instead of 
+    |         shell3           | 
+               0.730  
+
+    only need to modify this line in extrapolation_limit(): shell_mask = (signed_dist > 0) & (signed_dist < D)
+    to shell_mask = (signed_dist >shell_min) & (signed_dist < shell_max)
+    """
+    Dis_max_values = np.linspace(min_dist, max_dist, steps)  
+    fractions = []
+    fraction_inner, _ = extrapolation_limit(points, inner=True, error_cutoff=error_cut)
+    
+    for D in Dis_max_values:
+        try:
+            fraction, _ = extrapolation_limit(points, Dis_max=D, inner=False, error_cutoff=error_cut)
+            fractions.append(fraction)
+        except Exception as e:
+            print(f"Failed at Dis_max = {D:.2f} R_e: {e}")
+            fractions.append(np.nan)
+
+    # Plot
+    plt.figure(figsize=(9, 5))
+    plt.plot(Dis_max_values, fractions, marker='o')
+    plt.scatter(0,fraction_inner)
+    plt.xlabel("Distance from Convex Hull [Rₑ]")
+    plt.ylabel(f"Fraction of points with error < {error_cut}%")
+    plt.title("Extrapolation Accuracy vs. Distance")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"/home/leeviloi/fluxrope_thesis/Error_with_Distance_{error_cut}%_2.png")
 
 def W_rel_stats(save = True, anim = False):
     """
+    This function loops through all the position indices and creates three histogram plots 
+    containing all the 1D Wasserstein  
     """
     wx = []
     wy = []
@@ -715,4 +870,6 @@ def full_comp_anim():
     
 #plot_vlas_RBF_error(vlas_planes,RBF_planes)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(points)
+#Wasser_3D_hist(selected_points, pos_idx="10-90")
+#extrapolation_limit(points, error_cutoff=50, inner = True)
+limit_plot(error_cut = 50, steps = 25)
