@@ -111,7 +111,7 @@ vlsvfile = pt.vlsvfile.VlsvReader(file)
 
 
 N = 100  #number of measurements
-constellation = generate_constellation(100, points,np.array([6,-11,0]),np.array([10,-5,0]))
+constellation = generate_constellation(100, points,np.array([6,-11,-1]),np.array([10,-5,-1]))
 
 
 header = ['Position_Index']
@@ -133,7 +133,7 @@ for i in range(N):
         row.extend(vg_B_value)
     data.append(row)
 
-output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos.csv'  
+output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv'  
 with open(output_filename, mode='w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(data)

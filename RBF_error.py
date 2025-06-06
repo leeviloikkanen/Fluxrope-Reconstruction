@@ -16,12 +16,12 @@ import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
-
 vlsvfile = pt.vlsvfile.VlsvReader(file)
+
 R_e = 6371000   
 R_e_km  = 6371.0
 #Size of area to consider
@@ -40,16 +40,58 @@ B_cols    = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"] for sc in sc_n
 
 all_points = df[pos_cols].to_numpy().reshape(T * 7, 3) 
 
-start_idx = 10
-end_idx   = 91 
+start_idx = 0
+end_idx   = 90 
 selected_points = all_points[start_idx*7:end_idx*7]
-#####
-#RBF#
-#####
+
+#######################
+#Radial Basis Function#
+#######################
 
 centers = (df[pos_cols].to_numpy().reshape(T * 7, 3) / 1000.0)   # km
 values  =  df[B_cols].to_numpy().reshape(T * 7, 3)   
 
+def RBF_missing_data(missing_sc = None):
+    #Modify to select only sc that aren't in missing_sc then just same things as below: 
+
+    if missing_sc is None:
+        included_sc = sc_names
+    else:
+        included_sc = [sc for sc in sc_names if sc not in missing_sc]
+
+    included_pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"] for sc in included_sc], [])
+    included_B_cols = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"] for sc in included_sc], [])
+
+    centers_inc = df[included_pos_cols].to_numpy().reshape(-1, 3) / 1000.0  
+    values_inc = df[included_B_cols].to_numpy().reshape(-1, 3)
+    #pick epsilon
+    "https://www.math.iit.edu/~fass/Dolomites.pdf?" #nearest neighbor method mentioned
+    nbrs = NearestNeighbors(n_neighbors=2).fit(centers_inc)
+    dists, _ = nbrs.kneighbors(centers_inc)
+    epsilon = np.median(dists[:, 1])
+    print(f"RBF epsilon (missing {missing_sc}) = {epsilon:.3g} km")
+    
+    #RBF interpolation
+    rbf = RBFInterpolator(
+        centers_inc, values_inc,
+        kernel="multiquadric",
+        epsilon=epsilon,
+        smoothing=0.0
+    )
+    """
+    Outline: 
+        -be able to select which spacecraft to drop
+        then select the remaining SC from the data frame and calculate new RBF 
+        NOTE: With new RBF have to be very careful how it effects the logic of all other
+        fuctions, so implement with care!
+        One way would be maybe that the function is always called but the data missing = None?
+    """
+
+    return rbf, included_pos_cols, included_B_cols
+
+
+rbf, included_pos_cols, included_B_cols = RBF_missing_data()
+"""
 #pick epsilon
 "https://www.math.iit.edu/~fass/Dolomites.pdf?" #nearest neighbor method mentioned
 nbrs = NearestNeighbors(n_neighbors=2).fit(centers)
@@ -65,12 +107,7 @@ rbf = RBFInterpolator(
     epsilon=epsilon,
     smoothing=0.0
 )
-def RBF_missing_data():
-    """
-    Outline: 
-
-    """
-    return
+"""
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
 cluster_now = row[pos_cols].to_numpy().reshape(7, 3) / 1000.0     
@@ -122,7 +159,8 @@ YZ_RBF = sample_slice(y, z, bary_rbf[0], "yz")
 sc_names = [f"sc{i}" for i in range(1, 8)]
 pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"] for sc in sc_names], [])
 row     = df.loc[df["Position_Index"] == pos_idx].iloc[0]
-points  = row[pos_cols].to_numpy().reshape(7, 3)           
+points  = row[pos_cols].to_numpy().reshape(7, 3)
+points_incl = row[included_pos_cols].to_numpy().reshape(int(len(included_pos_cols)/3), 3) 
 bary_vlas    = points.mean(axis=0)                              
 
                              
@@ -267,7 +305,7 @@ plt.show()
 ##########
 #PLOTTING#
 ##########
-def plot_point_wise_error(save = True):
+def plot_point_wise_error(save = True, points = points):
     """
     Plots all 3 planes of point-wise errors between vlasiator and RBF 
     at a simulation position.
@@ -387,9 +425,11 @@ def plot_any_plane(norm_vec):
 
     return
 
-def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True):
+def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, points = points):
     """
-
+    Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
+    Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
+    the magnetic field strenght of the first two rows)  
     """
     err_xy =  error_perscentage(rbf_planes[0],vlas_planes[0], rel_error=rel_error)
     err_xz = error_perscentage(rbf_planes[1],vlas_planes[1],rel_error=rel_error)
@@ -483,7 +523,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True):
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
     return
 
 
@@ -555,8 +595,8 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     Return: (Wasser_x, Wasser_y, Wasser_z) 
     """
     if path == None:
-        path = f"/home/leeviloi/fluxrope_thesis/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
-    nx, ny, nz = 60, 60, 60
+        path = f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
+    nx, ny, nz = 300, 300, 30
     lil = buffer*R_e
     x = np.linspace(sc_points[:,0].min()-lil,sc_points[:,0].max()+lil,nx)
     y = np.linspace(sc_points[:,1].min()-lil,sc_points[:,1].max()+lil,ny)
@@ -670,7 +710,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     return tuple(W_rels)
 
 
-def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 50):
+def extrapolation_limit(sc_points,Dis_min = 0, Dis_max = 0.5, inner = False, error_cutoff = 50):
     import trimesh
     from scipy.spatial import ConvexHull, Delaunay
     """
@@ -684,15 +724,23 @@ def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 
 
        -vary distance starting from larger then expected then use that dataset to narrow down
         the distance till it fits the set requirements
-    Return
+    Return fraction,[W_rel_x, W_rel_y, W_rel_z]
+
+    Dis_min/inner
+    if Dis_min set to any value <0 the points inside the constellation are considered as well
+    if inner is set then only points inside the constellation are considered
+    by default the Dis_min starts from the surface of the convex hull and considers only points outside of it
     """
-    Dis_max = Dis_max*R_e
+    D_max = Dis_max*R_e
+    D_min = Dis_min*R_e
+    if D_min >D_max:
+        raise ValueError(f"Dis_Min is greater than Dis_max")
     nx, ny, nz = 60, 60, 60
     #Wraps thighly around constellation so max number of points are used
     if inner:
         lil = 0 
     else:
-        lil = 1.5*Dis_max
+        lil = 1.5*D_max
 
     x = np.linspace(sc_points[:, 0].min()-lil, sc_points[:, 0].max()+lil, nx)
     y = np.linspace(sc_points[:, 1].min()-lil, sc_points[:, 1].max()+lil, ny)
@@ -711,11 +759,12 @@ def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 
     signed_dist = unsigned_dist * np.where(inside, -1.0, 1.0)
     sdf_grid = signed_dist.reshape((nx, ny, nz))
     
-    D = Dis_max
     if inner: 
         shell_mask = (signed_dist <= 0)
+    elif D_min<0:
+        shell_mask = (signed_dist < D_max)
     else: 
-        shell_mask = (signed_dist > 0) & (signed_dist < D)
+        shell_mask = (signed_dist > D_min) & (signed_dist < D_max)
     pts_in_shell = pts[shell_mask]
 
     Bxyz_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", pts_in_shell)
@@ -742,6 +791,21 @@ def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 
 
     B_RBF = [Bx_RBF.ravel(), By_RBF.ravel(),Bz_RBF.ravel()]
     B_vlas =[Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()]
+    W_rels = []
+    for B_comp_RBF, B_comp_Vlas in zip(B_RBF,B_vlas):
+
+        valid_mask = np.isfinite(B_comp_RBF) & np.isfinite(B_comp_Vlas)
+        B_comp_RBF = B_comp_RBF[valid_mask]
+        B_comp_Vlas = B_comp_Vlas[valid_mask]
+
+        W1   = wasserstein_distance(B_comp_RBF, B_comp_Vlas)
+        comp_med = np.median(B_comp_Vlas)
+
+        #normalizing wasserstein distance by comparison to single valued 
+        W_den = wasserstein_distance(B_comp_Vlas, np.full_like(B_comp_Vlas,comp_med))
+        relW = np.round(W1 /W_den,4)       
+        W_rels.append(relW)
+        
     #error 
     dBx = B_RBF[0] - B_vlas[0]
     dBy = B_RBF[1] - B_vlas[1]
@@ -761,46 +825,87 @@ def extrapolation_limit(sc_points, Dis_max = 0.5, inner = False, error_cutoff = 
     fraction = len(error_num) / np.count_nonzero(valid_mask)
     if inner: 
         print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} inside constellation")
-    else:
-        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} at distance {Dis_max/1000:.1f} km from constellation")
+    elif Dis_min == 0:
+        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} at distance {D_max/1000:.1f} km from constellation")
+    elif D_min<0: 
+        print(f"Cumulative fraction of points with error <{error_cutoff}%: {fraction:.3f} at distance {D_max/1000:.1f} km from constellation")
+    else: 
+        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} between {D_min/1000:.1f} km to {D_max/1000:.1f} km from constellation")
     
-    return fraction, error_cutoff
-def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15):
+    return fraction, W_rels
+def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = True, save = True, threshold = 0.5, pos = pos_idx):
+    
     """
-    Suggestion: instead of just making the shell larger could be smart to 
-    see the fraction of values inside the increase distance shell instead the 
-    whole shell. 
+    instead of just making the shell larger shells give the ability to 
+    see the fraction of values inside the increased distance shell instead 
+    the of whole shell. 
+    Ex.
     | shell1 | shell2 | shell3 | 
        0.823    0.654    0.43
     instead of 
     |         shell3           | 
                0.730  
+    This is now implemented if shells is set to True
 
-    only need to modify this line in extrapolation_limit(): shell_mask = (signed_dist > 0) & (signed_dist < D)
-    to shell_mask = (signed_dist >shell_min) & (signed_dist < shell_max)
     """
-    Dis_max_values = np.linspace(min_dist, max_dist, steps)  
-    fractions = []
-    fraction_inner, _ = extrapolation_limit(points, inner=True, error_cutoff=error_cut)
-    
-    for D in Dis_max_values:
-        try:
-            fraction, _ = extrapolation_limit(points, Dis_max=D, inner=False, error_cutoff=error_cut)
-            fractions.append(fraction)
-        except Exception as e:
-            print(f"Failed at Dis_max = {D:.2f} R_e: {e}")
-            fractions.append(np.nan)
+    row     = df.loc[df["Position_Index"] == pos].iloc[0]
+    points  = row[pos_cols].to_numpy().reshape(7, 3) 
 
-    # Plot
-    plt.figure(figsize=(9, 5))
-    plt.plot(Dis_max_values, fractions, marker='o')
-    plt.scatter(0,fraction_inner)
-    plt.xlabel("Distance from Convex Hull [Rₑ]")
-    plt.ylabel(f"Fraction of points with error < {error_cut}%")
-    plt.title("Extrapolation Accuracy vs. Distance")
-    plt.grid(True)
+    Dis_edges = np.linspace(min_dist, max_dist, steps + 1)
+    Dis_mids = 0.5 * (Dis_edges[:-1] + Dis_edges[1:])  
+
+    fractions = []
+    W_x, W_y, W_z = [], [], []
+
+    fraction_inner, _ = extrapolation_limit(points, inner=True, error_cutoff=error_cut)
+   
+    outer_edge = Dis_edges[1:]
+    if shells:
+        inner_edge = Dis_edges[:-1]
+    else:
+        inner_edge = np.full_like(outer_edge,-1)
+    for D_min, D_max in zip(inner_edge, outer_edge):
+        fraction, W_rels = extrapolation_limit(points, Dis_min=D_min, Dis_max=D_max, inner=False, error_cutoff=error_cut)
+        fractions.append(fraction)
+        W_x.append(W_rels[0])
+        W_y.append(W_rels[1])
+        W_z.append(W_rels[2])
+        
+
+    cutoff_value = threshold*fraction_inner
+    drop_idx = next((i for i, f in enumerate(fractions) if f < cutoff_value), None)
+    drop_dist = Dis_mids[drop_idx] if drop_idx is not None else None
+
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
+
+    axs[0].plot(Dis_mids, fractions, marker="o", label="Shell Accuracy")
+    axs[0].scatter(0, fraction_inner, c="red", label="Inside Constellation")
+    if drop_dist:
+        axs[0].axvline(drop_dist, color="black", linestyle="--", label=rf"{threshold*100:.0f}% drop at {drop_dist:.2f} $R_e$")
+    axs[0].set_xlabel(r"Distance from Convex Hull $R_e$")
+    axs[0].set_ylabel(f"Fraction with error < {error_cut}%")
+    axs[0].set_title("Extrapolation Accuracy")
+    axs[0].grid(True)
+    axs[0].legend()
+
+    axs[1].plot(Dis_mids, W_x, label=r"$W_x$")
+    axs[1].plot(Dis_mids, W_y, label=r"$W_y$")
+    axs[1].plot(Dis_mids, W_z, label=r"$W_z$")
+    axs[1].set_xlabel(r"Distance from Convex Hull $R_e$")
+    axs[1].set_ylabel("Relative Wasserstein Distance")
+    axs[1].set_title("Wasserstein Distance by Component")
+    axs[1].grid(True)
+    axs[1].legend()
+
+    plt.suptitle(f"Position: {pos}")
     plt.tight_layout()
-    plt.savefig(f"/home/leeviloi/fluxrope_thesis/Error_with_Distance_{error_cut}%_2.png")
+    if save:
+        if shells:
+            plt.suptitle(f"Error by Shell, Position: {pos}")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_shells.png")
+        else: 
+            plt.suptitle(f"Cumulative error, Position: {pos}")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
 
 def W_rel_stats(save = True, anim = False):
     """
@@ -813,7 +918,9 @@ def W_rel_stats(save = True, anim = False):
     for pos in range(100):
         #location of spacecrafts at desired index
         if anim:
-            anim_path= f"/home/leeviloi/fluxrope_thesis/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+        else:
+            anim_path = None
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
         points  = row[pos_cols].to_numpy().reshape(7, 3) 
     
@@ -842,7 +949,7 @@ def W_rel_stats(save = True, anim = False):
         p90 = np.percentile(w, 90)          
         ax.axvline(p90, color="crimson", ls="--", lw=1.8,
                label=f"90%")
-        ax.hist(w, bins=25, color="steelblue", alpha=0.7)
+        ax.hist(w, bins=50, color="steelblue", alpha=0.7)
         ax.set_xlabel(lab)
         ax.set_ylabel("Count")
         ax.grid(alpha=0.3)
@@ -850,7 +957,7 @@ def W_rel_stats(save = True, anim = False):
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig("/home/leeviloi/fluxrope_thesis/W_rel_stats_3D.png")
+        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/W_rel_stats_3D_bins=50.png")
   
     return
 
@@ -868,8 +975,9 @@ def full_comp_anim():
 #Main#
 ######
     
-#plot_vlas_RBF_error(vlas_planes,RBF_planes)
+#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(selected_points, pos_idx="10-90")
+Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
-limit_plot(error_cut = 50, steps = 25)
+#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
+#W_rel_stats(anim = False)
