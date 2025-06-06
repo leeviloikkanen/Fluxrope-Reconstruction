@@ -733,7 +733,7 @@ def extrapolation_limit(sc_points,Dis_min = 0, Dis_max = 0.5, inner = False, err
     """
     D_max = Dis_max*R_e
     D_min = Dis_min*R_e
-    if D_min >D_max:
+    if D_min > D_max:
         raise ValueError(f"Dis_Min is greater than Dis_max")
     nx, ny, nz = 60, 60, 60
     #Wraps thighly around constellation so max number of points are used
