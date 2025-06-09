@@ -29,7 +29,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 20          
+pos_idx = 10          
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -700,7 +700,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
         ax.set_xlabel(f"{label}")
         ax.set_title(rf"$W_{{\mathrm{{rel}}}} = {relW}$")
         ax.grid(alpha=0.3)
-        axes[0].legend(loc="upper right")
+        axes[0].legend(loc="upper left")
     fig.tight_layout(rect=[0, 0, 1, 0.93]) 
     fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, Convex Hull")
 
@@ -891,6 +891,7 @@ def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = T
     axs[1].plot(Dis_mids, W_x, label=r"$W_x$")
     axs[1].plot(Dis_mids, W_y, label=r"$W_y$")
     axs[1].plot(Dis_mids, W_z, label=r"$W_z$")
+
     axs[1].set_xlabel(r"Distance from Convex Hull $R_e$")
     axs[1].set_ylabel("Relative Wasserstein Distance")
     axs[1].set_title("Wasserstein Distance by Component")
@@ -961,6 +962,93 @@ def W_rel_stats(save = True, anim = False):
   
     return
 
+
+def fieldlines_3D(pos = 20, ood = False):
+    """
+
+    interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
+    to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
+    Set ood to True to show plots 
+    Code modified from/inspired by: https://magpylib.readthedocs.io/en/latest/_pages/user_guide/examples/examples_vis_pv_streamlines.html 
+
+    """
+    import pyvista as pv
+
+    pos_idx = pos  
+    sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3) / 1000.0  
+
+    padding = 0.5 
+    #For the integration set resolution to be more directly correlated to step size
+    bounds_km = np.array([
+        sc_now[:, 0].min() - padding * R_e_km,
+        sc_now[:, 0].max() + padding * R_e_km,
+        sc_now[:, 1].min() - padding * R_e_km,
+        sc_now[:, 1].max() + padding * R_e_km,
+        sc_now[:, 2].min() - padding * R_e_km,
+        sc_now[:, 2].max() + padding * R_e_km,
+    ])
+    spacing = (200.0, 200.0, 200.0)
+    dims = (
+        int((bounds_km[1] - bounds_km[0]) // spacing[0]) + 1,
+        int((bounds_km[3] - bounds_km[2]) // spacing[1]) + 1,
+        int((bounds_km[5] - bounds_km[4]) // spacing[2]) + 1,
+    )
+    
+    #Origin in pv.ImageData sets the starting corner
+    #thats why bary center not used here
+    grid = pv.ImageData(
+        dimensions=dims,
+        spacing=spacing,
+        origin=(bounds_km[0], bounds_km[2], bounds_km[4]),
+    )
+    grid_pts_km = grid.points
+    grid_pts_m = grid_pts_km * 1000.0
+
+    grid["B_RBF"] = rbf(grid_pts_km)
+    B_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", grid_pts_m)
+    grid["B_VLAS"] = B_vlas
+
+
+    #spacing of field line seeds
+    buffer = 0.2*R_e_km
+    #buffer so that integration doesn't start at edge
+    grid_seed_spacing = 4
+    x = np.linspace(bounds_km[0]+buffer, bounds_km[1]-buffer, grid_seed_spacing)
+    y = np.linspace(bounds_km[2]+buffer, bounds_km[3]-buffer, grid_seed_spacing)
+    z = np.linspace(bounds_km[4]+buffer, bounds_km[5]-buffer, grid_seed_spacing)
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    grid_seeds = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+
+    pl = pv.Plotter()
+    all_seeds = np.vstack([sc_now, grid_seeds])
+    seed_points = pv.PolyData(all_seeds)
+    #seed_points = pv.PolyData(np.vstack([sc_now]))
+
+    streamlines_RBF = grid.streamlines_from_source(
+        seed_points,
+        vectors="B_RBF",
+        max_step_length=400.0,
+        max_time=2e4,
+        integration_direction="both",
+    )
+    streamlines_vlas = grid.streamlines_from_source(
+        seed_points,
+        vectors="B_VLAS",
+        max_step_length=400,
+        max_time=2e4,
+        integration_direction="both"
+    )
+
+    pl.add_mesh(streamlines_vlas.tube(radius=60), color="blue", label="Vlasiator")
+    pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
+    pl.add_points(sc_now, color="black", point_size=10)
+    pl.add_axes()
+    pl.add_legend()
+    pl.show_grid()
+    if ood:
+        pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
+    return
+
 #Animation functions
 def full_comp_anim():
     """
@@ -977,7 +1065,8 @@ def full_comp_anim():
     
 #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
+#Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
 #W_rel_stats(anim = False)
+fieldlines_3D(ood = True)
