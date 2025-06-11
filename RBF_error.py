@@ -5,6 +5,7 @@
 #https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2023EA003369
 
 #NOTE: SOME FUNCTION HAVE NOT PROPERLY BEEN UPDATED SO THERE MIGHT BE SOME ERRORS (namely plot_hist_component_comparison() needs index map)
+#TODO: modify functions to have directly some folder_dir+identifier to automatically change file names and locations at start 
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.5.csv")
 t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
@@ -29,7 +30,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 10          
+pos_idx = 50          
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -112,7 +113,6 @@ rbf = RBFInterpolator(
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
 cluster_now = row[pos_cols].to_numpy().reshape(7, 3) / 1000.0     
 bary_rbf = cluster_now.mean(axis=0)     
-
 
 def sample_slice(coord1, coord2, const_coord, plane):
     """
@@ -523,7 +523,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
     return
 
 
@@ -595,8 +595,8 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     Return: (Wasser_x, Wasser_y, Wasser_z) 
     """
     if path == None:
-        path = f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
-    nx, ny, nz = 300, 300, 30
+        path = f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.5/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
+    nx, ny, nz = 60, 60, 60
     lil = buffer*R_e
     x = np.linspace(sc_points[:,0].min()-lil,sc_points[:,0].max()+lil,nx)
     y = np.linspace(sc_points[:,1].min()-lil,sc_points[:,1].max()+lil,ny)
@@ -906,7 +906,7 @@ def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = T
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_shells.png")
         else: 
             plt.suptitle(f"Cumulative error, Position: {pos}")
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.5/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
 
 def W_rel_stats(save = True, anim = False):
     """
@@ -916,10 +916,10 @@ def W_rel_stats(save = True, anim = False):
     wx = []
     wy = []
     wz = []
-    for pos in range(100):
+    for pos in range(T):
         #location of spacecrafts at desired index
         if anim:
-            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
         else:
             anim_path = None
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
@@ -958,12 +958,12 @@ def W_rel_stats(save = True, anim = False):
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/W_rel_stats_3D_bins=50.png")
+        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/W_rel_stats_3D_bins=50_inner=0.5.png")
   
     return
 
 
-def fieldlines_3D(pos = 20, ood = False):
+def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True):
     """
 
     interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
@@ -977,7 +977,7 @@ def fieldlines_3D(pos = 20, ood = False):
     pos_idx = pos  
     sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3) / 1000.0  
 
-    padding = 0.5 
+    padding = pad
     #For the integration set resolution to be more directly correlated to step size
     bounds_km = np.array([
         sc_now[:, 0].min() - padding * R_e_km,
@@ -1002,17 +1002,18 @@ def fieldlines_3D(pos = 20, ood = False):
         origin=(bounds_km[0], bounds_km[2], bounds_km[4]),
     )
     grid_pts_km = grid.points
-    grid_pts_m = grid_pts_km * 1000.0
+    grid_pts_m = grid_pts_km*1000.0
 
     grid["B_RBF"] = rbf(grid_pts_km)
     B_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", grid_pts_m)
     grid["B_VLAS"] = B_vlas
 
-
+    
+    #INTEGRAL CURVE SEED POINTS
     #spacing of field line seeds
     buffer = 0.2*R_e_km
     #buffer so that integration doesn't start at edge
-    grid_seed_spacing = 4
+    grid_seed_spacing = 3
     x = np.linspace(bounds_km[0]+buffer, bounds_km[1]-buffer, grid_seed_spacing)
     y = np.linspace(bounds_km[2]+buffer, bounds_km[3]-buffer, grid_seed_spacing)
     z = np.linspace(bounds_km[4]+buffer, bounds_km[5]-buffer, grid_seed_spacing)
@@ -1028,25 +1029,27 @@ def fieldlines_3D(pos = 20, ood = False):
         seed_points,
         vectors="B_RBF",
         max_step_length=400.0,
-        max_time=2e4,
         integration_direction="both",
     )
     streamlines_vlas = grid.streamlines_from_source(
         seed_points,
         vectors="B_VLAS",
         max_step_length=400,
-        max_time=2e4,
         integration_direction="both"
     )
-
-    pl.add_mesh(streamlines_vlas.tube(radius=60), color="blue", label="Vlasiator")
-    pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
+    if vlas_lines: 
+        pl.add_mesh(streamlines_vlas.tube(radius=60), color="blue", label="Vlasiator")
+    if RBF_lines:
+        pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
     pl.add_points(sc_now, color="black", point_size=10)
     pl.add_axes()
     pl.add_legend()
     pl.show_grid()
+    if save:
+        pl.save_graphic("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/RBF_Vlas_3D_fieldlines.svg")
     if ood:
         pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
+    
     return
 
 #Animation functions
@@ -1068,5 +1071,5 @@ def full_comp_anim():
 #Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
-#W_rel_stats(anim = False)
-fieldlines_3D(ood = True)
+W_rel_stats(anim = True)
+#fieldlines_3D(pos=40,ood = True)
