@@ -12,12 +12,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
+from scipy.stats import skew
 from sklearn.neighbors import NearestNeighbors
 import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.5.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
@@ -30,7 +31,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 50          
+pos_idx = 58         
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -42,7 +43,7 @@ B_cols    = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"] for sc in sc_n
 all_points = df[pos_cols].to_numpy().reshape(T * 7, 3) 
 
 start_idx = 0
-end_idx   = 90 
+end_idx   = 100 
 selected_points = all_points[start_idx*7:end_idx*7]
 
 #######################
@@ -90,7 +91,8 @@ def RBF_missing_data(missing_sc = None):
 
     return rbf, included_pos_cols, included_B_cols
 
-
+#outer tetra = ["sc2","sc3","sc4"]
+#inner tetra = ["sc5","sc6","sc7"]
 rbf, included_pos_cols, included_B_cols = RBF_missing_data()
 """
 #pick epsilon
@@ -244,6 +246,7 @@ def plane_wasserstein(rbf_plane, vlas_plane, plane_name):
     rel_wass["plane"] = plane_name
     return rel_wass
 
+#This could/should be moved into one of the plotting functions. No need to calculate it everytime 
 results = []
 results.append(plane_wasserstein(XY_RBF, XY_Vlas, "xy"))
 results.append(plane_wasserstein(XZ_RBF, XZ_Vlas, "xz"))
@@ -523,7 +526,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_GOOD.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_outer/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_missing_outer.png")
     return
 
 
@@ -595,7 +598,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     Return: (Wasser_x, Wasser_y, Wasser_z) 
     """
     if path == None:
-        path = f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.5/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
+        path = f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
     nx, ny, nz = 60, 60, 60
     lil = buffer*R_e
     x = np.linspace(sc_points[:,0].min()-lil,sc_points[:,0].max()+lil,nx)
@@ -919,7 +922,7 @@ def W_rel_stats(save = True, anim = False):
     for pos in range(T):
         #location of spacecrafts at desired index
         if anim:
-            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_outer/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
         else:
             anim_path = None
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
@@ -948,18 +951,22 @@ def W_rel_stats(save = True, anim = False):
     for ax, w, lab in zip(axes, series, labels):
         w = np.asarray(w)
         p90 = np.percentile(w, 90)          
+        sk = skew(w)
+
         ax.axvline(p90, color="crimson", ls="--", lw=1.8,
-               label=f"90%")
-        ax.hist(w, bins=50, color="steelblue", alpha=0.7)
+               label=f"90%: {np.round(p90,2)}")
+        bin_edges = np.linspace(0, 1.6, 51)
+        ax.hist(w, bins=bin_edges, color="steelblue", alpha=0.7)
+        ax.set_xlim([0,1.6])
         ax.set_xlabel(lab)
         ax.set_ylabel("Count")
         ax.grid(alpha=0.3)
-    axes[0].legend(loc= "upper right")
+        ax.legend(loc= "upper right")
+        ax.set_title(f"Skew: {np.round(sk, 2)}")
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/W_rel_stats_3D_bins=50_inner=0.5.png")
-  
+        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/W_rel_stats_3D_bins=50_z=-1_3.png")
     return
 
 
@@ -970,7 +977,7 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
     to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
     Set ood to True to show plots 
     Code modified from/inspired by: https://magpylib.readthedocs.io/en/latest/_pages/user_guide/examples/examples_vis_pv_streamlines.html 
-
+    TODO: Filter field lines by curvature to limit amount of curves in the graph
     """
     import pyvista as pv
 
@@ -1013,6 +1020,7 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
     #spacing of field line seeds
     buffer = 0.2*R_e_km
     #buffer so that integration doesn't start at edge
+    #Notice buffer sign
     grid_seed_spacing = 3
     x = np.linspace(bounds_km[0]+buffer, bounds_km[1]-buffer, grid_seed_spacing)
     y = np.linspace(bounds_km[2]+buffer, bounds_km[3]-buffer, grid_seed_spacing)
@@ -1046,7 +1054,7 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
     pl.add_legend()
     pl.show_grid()
     if save:
-        pl.save_graphic("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/RBF_Vlas_3D_fieldlines.svg")
+        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
     if ood:
         pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
     
@@ -1065,11 +1073,13 @@ def full_comp_anim():
 ######
 #Main#
 ######
-    
+
+#CHECK WHICH FILE USED AND OUTPUT FILE NAMES
+
 #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
-W_rel_stats(anim = True)
-#fieldlines_3D(pos=40,ood = True)
+W_rel_stats()
+#fieldlines_3D(save=True,pos=40,ood = True)

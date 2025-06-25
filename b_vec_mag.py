@@ -42,6 +42,7 @@ sc6 = np.array([5.89420896, -10.34707714, -0.25]) * R_e
 sc7 = np.array([6.63111303, -10.80201933, -0.25]) * R_e
 
 """
+"""
 #z-axis 0 deg, inner=0.5
 sc1 = np.array([3.5, -10.0, -1.0]) * R_e
 sc2 = np.array([4.5, -10.0,  0.0]) * R_e
@@ -50,9 +51,16 @@ sc4 = np.array([4.5, -10.8660254, -1.5]) * R_e
 sc5 = np.array([4.0, -10.0, -0.5]) * R_e
 sc6 = np.array([4.0,  -9.5669873, -1.25]) * R_e
 sc7 = np.array([4.0, -10.4330127, -1.25]) * R_e
+"""
+#z-axis 0 deg, inner=0.7
+sc1 = np.array([3.5, -10.0, -1.0]) * R_e
+sc2 = np.array([4.5, -10.0,  0.0]) * R_e
+sc3 = np.array([4.5, -9.1339746, -1.5]) * R_e
+sc4 = np.array([4.5, -10.8660254, -1.5]) * R_e
+sc5 = np.array([3.64285714, -10.0, -0.85714286]) * R_e
+sc6 = np.array([3.64285714, -9.87628209, -1.07142857]) * R_e
+sc7 = np.array([3.64285714, -10.12371791, -1.07142857]) * R_e
 
-
-#points = [sc1, sc2, sc3, sc4, sc5, sc6, sc7]
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
 #Start and end points given in R_e (6371km)
@@ -161,7 +169,7 @@ for i in range(N):
         row.extend(vg_B_value)
     data.append(row)
 
-output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.5.csv'  
+output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv'  
 with open(output_filename, mode='w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(data)
