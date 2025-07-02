@@ -9,16 +9,16 @@
 
 import numpy as np
 import pandas as pd
+import pyvista as pv
 import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
-from scipy.stats import skew
 from sklearn.neighbors import NearestNeighbors
 import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv")
 t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
@@ -93,7 +93,8 @@ def RBF_missing_data(missing_sc = None):
 
 #outer tetra = ["sc2","sc3","sc4"]
 #inner tetra = ["sc5","sc6","sc7"]
-rbf, included_pos_cols, included_B_cols = RBF_missing_data()
+missing_sc = None
+rbf, included_pos_cols, included_B_cols = RBF_missing_data(missing_sc)
 """
 #pick epsilon
 "https://www.math.iit.edu/~fass/Dolomites.pdf?" #nearest neighbor method mentioned
@@ -588,7 +589,7 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
     return
 
 
-def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx, buffer = 0, error_cutoff = 20):
+def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx, buffer = 0, error_cutoff = 20, info = True):
     """
     This function creates a three histogram plots of the values of the components in 
     RBF reconstruction and Vlasiator data inside a convex hull made of the virtual 
@@ -659,8 +660,8 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     error_num = error_per[good_mask]
 
     fraction = len(error_num) / np.count_nonzero(valid_mask)
-
-    print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f}")
+    if info: 
+        print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f}")
     
 
     #Plotting
@@ -951,7 +952,7 @@ def W_rel_stats(save = True, anim = False):
     for ax, w, lab in zip(axes, series, labels):
         w = np.asarray(w)
         p90 = np.percentile(w, 90)          
-        sk = skew(w)
+        p10 = np.percentile(w,10)
 
         ax.axvline(p90, color="crimson", ls="--", lw=1.8,
                label=f"90%: {np.round(p90,2)}")
@@ -962,27 +963,49 @@ def W_rel_stats(save = True, anim = False):
         ax.set_ylabel("Count")
         ax.grid(alpha=0.3)
         ax.legend(loc= "upper right")
-        ax.set_title(f"Skew: {np.round(sk, 2)}")
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1/W_rel_stats_3D_bins=50_z=-1_3.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_sc/W_rel_stats_3D_bins=50_missing_{missing_sc[0]}.png")
     return
+
+def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
+    
+    def max_angle(pts):
+        if pts.shape[0] < 3:
+            return 0.0
+        v = np.diff(pts, axis=0)
+        #Calculates unit vector and calculates dot product
+        #with next vector
+        v_unit = v/np.linalg.norm(v, axis=1, keepdims=True)
+        dots   =  (v_unit[:-1] * v_unit[1:]).sum(axis=1)
+        angles = np.arccos(np.clip(dots, -1.0, 1.0))
+        return angles.max()
+    
+    def as_blocks(mesh):
+        blocks = []
+        for cid in range(mesh.n_cells):
+            ug = mesh.extract_cells(cid)
+            pd = ug.extract_surface()
+            blocks.append(pd)
+        return blocks   
+    
+    curved = [blk.tube(radius=radius) for blk in as_blocks(mesh)
+              if max_angle(blk.points) >= thresh_rad]
+    return pv.MultiBlock(curved)                
 
 
 def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True):
     """
-
     interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
     to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
     Set ood to True to show plots 
     Code modified from/inspired by: https://magpylib.readthedocs.io/en/latest/_pages/user_guide/examples/examples_vis_pv_streamlines.html 
-    TODO: Filter field lines by curvature to limit amount of curves in the graph
+    TODO: Keep both field lines when one qualifies 
     """
-    import pyvista as pv
 
     pos_idx = pos  
-    sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3) / 1000.0  
+    sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3)/1000.0  
 
     padding = pad
     #For the integration set resolution to be more directly correlated to step size
@@ -1021,7 +1044,7 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
     buffer = 0.2*R_e_km
     #buffer so that integration doesn't start at edge
     #Notice buffer sign
-    grid_seed_spacing = 3
+    grid_seed_spacing = 4
     x = np.linspace(bounds_km[0]+buffer, bounds_km[1]-buffer, grid_seed_spacing)
     y = np.linspace(bounds_km[2]+buffer, bounds_km[3]-buffer, grid_seed_spacing)
     z = np.linspace(bounds_km[4]+buffer, bounds_km[5]-buffer, grid_seed_spacing)
@@ -1045,10 +1068,21 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
         max_step_length=400,
         integration_direction="both"
     )
+    
+    curv_thresh = np.deg2rad(5)     
+    streamlines_vlas = keep_only_curved(streamlines_vlas, curv_thresh)
+    streamlines_RBF  = keep_only_curved(streamlines_RBF,  curv_thresh)
+   
+    if vlas_lines:
+        pl.add_mesh(streamlines_vlas, color="blue", label="Vlasiator")
+    if RBF_lines:
+        pl.add_mesh(streamlines_RBF, color="red",  label="RBF")    
+    """
     if vlas_lines: 
         pl.add_mesh(streamlines_vlas.tube(radius=60), color="blue", label="Vlasiator")
     if RBF_lines:
         pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
+    """
     pl.add_points(sc_now, color="black", point_size=10)
     pl.add_axes()
     pl.add_legend()
@@ -1081,5 +1115,5 @@ def full_comp_anim():
 #Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
-W_rel_stats()
-#fieldlines_3D(save=True,pos=40,ood = True)
+#W_rel_stats()
+fieldlines_3D(save=False,pos=40,ood = True)
