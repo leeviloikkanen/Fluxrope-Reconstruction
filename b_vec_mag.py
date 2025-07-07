@@ -145,7 +145,7 @@ N = 60 #number of measurements
 #Current constellation total distance is 7.211 R_e
 #For consistency between measurements try keeping about same
 #Or distance between measurements at about ~459.41km
-constellation = generate_constellation(60, points,np.array([3.5,-10,-1]),np.array([7.827,-10,-1]))
+constellation = generate_constellation(60, points,np.array([6,-6.5,-2]),np.array([10.327,-6.5,-2]))
 #fly up start end: [6,-11,-1],[10,-5,-1], 100 measurements
 #z rotation = 0, fly through
 #next [3.5,-10,-1] to [7.827,-10,-1] 60 measurements
@@ -169,7 +169,7 @@ for i in range(N):
         row.extend(vg_B_value)
     data.append(row)
 
-output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv'  
+output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_through_high_res+pos_z=-2_inner_scale=0.14.csv'  
 with open(output_filename, mode='w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(data)

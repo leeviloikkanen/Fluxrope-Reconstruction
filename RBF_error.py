@@ -18,7 +18,7 @@ import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through_high_res+pos_z=-2_inner_scale=0.14.csv")
 t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
@@ -31,7 +31,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 58         
+pos_idx = 35        
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -445,9 +445,22 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     ("X-Z  (y = {:.0f} km)".format(bary_vlas[1]/1e3),("X","Z","y"),err_xz[-1]),
     ("Y-Z  (x = {:.0f} km)".format(bary_vlas[0]/1e3),("Y","Z","x"),err_yz[-1]),
     ]
-    err_vmin, err_vmax = 0.0, 50.0                     
-    levels   = np.linspace(err_vmin, err_vmax, 31)     
-    norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+    if rel_error:
+        err_vmin, err_vmax = 0.0, 50.0                     
+        levels   = np.linspace(err_vmin, err_vmax, 31)     
+        norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+        error_lbl = "Error (%)"
+    else:
+        xy_max = np.max(err_xy[-1])
+        xz_max = np.max(err_xz[-1])
+        yz_max = np.max(err_yz[-1])
+
+        overall_max = max(xy_max, xz_max, yz_max)
+        err_vmin, err_vmax = 0.0, overall_max
+        levels   = np.linspace(err_vmin, err_vmax, 31)
+        norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+        error_lbl = "|ΔB|"             # label for absolute error
+
     clus_size = 20
 
     for i, (vlas_plane,rbf_plane, panel) in enumerate(zip(vlas_planes,rbf_planes,panels)):
@@ -515,7 +528,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
                             norm=norm)
 
     fig.colorbar(sm, ax=axes[2,:].ravel().tolist(),
-                orientation="vertical", label="Error %", shrink = 0.8)
+                orientation="vertical", label=error_lbl, shrink = 0.8)
     #Label each row
     row_y = [0.96, 0.64, 0.32]    
     for y, txt in zip(row_y,
@@ -527,7 +540,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_outer/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_missing_outer.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_abs_error.png")
     return
 
 
@@ -910,7 +923,7 @@ def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = T
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_shells.png")
         else: 
             plt.suptitle(f"Cumulative error, Position: {pos}")
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.5/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
 
 def W_rel_stats(save = True, anim = False):
     """
@@ -923,7 +936,7 @@ def W_rel_stats(save = True, anim = False):
     for pos in range(T):
         #location of spacecrafts at desired index
         if anim:
-            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_outer/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
         else:
             anim_path = None
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
@@ -966,12 +979,13 @@ def W_rel_stats(save = True, anim = False):
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/missing_sc/W_rel_stats_3D_bins=50_missing_{missing_sc[0]}.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/W_rel_stats_3D_bins=50.png")
     return
 
 def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
     
     def max_angle(pts):
+        #need 3 points to calculate curvature
         if pts.shape[0] < 3:
             return 0.0
         v = np.diff(pts, axis=0)
@@ -1069,7 +1083,7 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
         integration_direction="both"
     )
     
-    curv_thresh = np.deg2rad(5)     
+    curv_thresh = np.deg2rad(2)     
     streamlines_vlas = keep_only_curved(streamlines_vlas, curv_thresh)
     streamlines_RBF  = keep_only_curved(streamlines_RBF,  curv_thresh)
    
@@ -1086,9 +1100,15 @@ def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = T
     pl.add_points(sc_now, color="black", point_size=10)
     pl.add_axes()
     pl.add_legend()
-    pl.show_grid()
+    pl.show_grid(
+        xtitle="X [km]",
+        ytitle="Y [km]",
+        ztitle="Z [km]",
+        fmt="%.0f",              
+        font_size=15
+    )
     if save:
-        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.5/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
+        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
     if ood:
         pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
     
@@ -1110,10 +1130,10 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl)
+plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(all_points, pos_idx="0-100", save = True)
+#Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
-#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 20)
-#W_rel_stats()
-fieldlines_3D(save=False,pos=40,ood = True)
+#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 35)
+#W_rel_stats(anim = True)
+#fieldlines_3D(save=True,pos=35,ood = True)
