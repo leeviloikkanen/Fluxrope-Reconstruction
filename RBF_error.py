@@ -18,8 +18,9 @@ import pytools as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_through_high_res+pos_z=-2_inner_scale=0.14.csv")
-t = 1432
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1352_tail_through+pos_z=-0.5_inner_scale=0.14.csv")
+#CHECK TIME
+t = 1352
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
 vlsvfile = pt.vlsvfile.VlsvReader(file)
@@ -31,7 +32,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 35        
+pos_idx = 90        
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -93,7 +94,7 @@ def RBF_missing_data(missing_sc = None):
 
 #outer tetra = ["sc2","sc3","sc4"]
 #inner tetra = ["sc5","sc6","sc7"]
-missing_sc = None
+missing_sc =None
 rbf, included_pos_cols, included_B_cols = RBF_missing_data(missing_sc)
 """
 #pick epsilon
@@ -450,16 +451,14 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
         levels   = np.linspace(err_vmin, err_vmax, 31)     
         norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
         error_lbl = "Error (%)"
+        error_title = "point-wise error (%)"
     else:
-        xy_max = np.max(err_xy[-1])
-        xz_max = np.max(err_xz[-1])
-        yz_max = np.max(err_yz[-1])
 
-        overall_max = max(xy_max, xz_max, yz_max)
-        err_vmin, err_vmax = 0.0, overall_max
+        err_vmin, err_vmax = 0.0, 1.5e-8
         levels   = np.linspace(err_vmin, err_vmax, 31)
         norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
-        error_lbl = "|ΔB|"             # label for absolute error
+        error_lbl = "|ΔB|"  
+        error_title = "Absolute point-wise error"          
 
     clus_size = 20
 
@@ -530,17 +529,18 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     fig.colorbar(sm, ax=axes[2,:].ravel().tolist(),
                 orientation="vertical", label=error_lbl, shrink = 0.8)
     #Label each row
-    row_y = [0.96, 0.64, 0.32]    
+    row_y = [0.96, 0.64, 0.32]  
+
     for y, txt in zip(row_y,
                     ["Vlasiator",
                     "RBF",
-                    "point-wise error (%)"]):
+                    error_title]):
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
 
     #fig.tight_layout()
-    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = 1432s", fontsize = 20)
+    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = {t}", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time=1432_L={Lsize}_abs_error.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD.png")
     return
 
 
@@ -936,7 +936,7 @@ def W_rel_stats(save = True, anim = False):
     for pos in range(T):
         #location of spacecrafts at desired index
         if anim:
-            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
+            anim_path= f"/home/leeviloi/fluxrope_thesis/fly_through_tail/hist_3D_anim/histogram_comparison_comp_counts_3D_pos_{pos}.png"
         else:
             anim_path = None
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
@@ -979,7 +979,7 @@ def W_rel_stats(save = True, anim = False):
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/W_rel_stats_3D_bins=50.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/W_rel_stats_3D_bins=50.png")
     return
 
 def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
@@ -1009,7 +1009,7 @@ def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
     return pv.MultiBlock(curved)                
 
 
-def fieldlines_3D(pos = 20, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True):
+def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True):
     """
     interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
     to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
@@ -1130,10 +1130,10 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
+#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 35)
 #W_rel_stats(anim = True)
-#fieldlines_3D(save=True,pos=35,ood = True)
+fieldlines_3D(save=False,pos=50,ood = True)

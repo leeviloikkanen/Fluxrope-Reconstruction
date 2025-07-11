@@ -10,48 +10,9 @@ import csv
 #Virtual spacecraft (SC) locations 
 #Multiply by R_e is coordinates in R_e 
 R_e = 6371000
-#z-axis 135 deg
-"""
-sc1 = [ 38226000., -70081000.,0.]
-sc2 = [ 33721022.6970605, -65576022.6970605,6371000.]
-sc3 = [ 29819597.9092426, -69477447.4848784,-3185500.]
-sc4 = [ 37622447.48487841, -61674597.90924259,-3185500.]
-sc5 = [ 37582431.81386579, -69437431.81386578,910142.85714286]
-sc6 = [ 37025085.41560608, -69994778.21212548,-455071.42857143]
-sc7 = [ 38139778.21212549, -68880085.4156061,-455071.42857143]
-"""
-#Virtual Spacecraft Constellation
-"""
-#z-axis 58 deg
-sc1 = np.array([6.0, -11.0, 0.0]) * R_e
-sc2 = np.array([6.52532199, -10.14909648, 1.0]) * R_e
-sc3 = np.array([5.78841792, -9.69415429, -0.5]) * R_e
-sc4 = np.array([7.26222606, -10.60403866, -0.5]) * R_e
-sc5 = np.array([6.075046, -10.87844235, 0.14285714]) * R_e
-sc6 = np.array([5.96977399, -10.81345061, -0.07142857]) * R_e
-sc7 = np.array([6.18031801, -10.94343409, -0.07142857]) * R_e
-"""
-"""
-#z-axis 58 deg+inner scale 1/2 instead of 1/7
-sc1 = np.array([6.0, -11.0, 0.0]) * R_e
-sc2 = np.array([6.52532199, -10.14909648, 1.0]) * R_e
-sc3 = np.array([5.78841792, -9.69415429, -0.5]) * R_e
-sc4 = np.array([7.26222606, -10.60403866, -0.5]) * R_e
-sc5 = np.array([6.26266099, -10.57454824, 0.5]) * R_e
-sc6 = np.array([5.89420896, -10.34707714, -0.25]) * R_e
-sc7 = np.array([6.63111303, -10.80201933, -0.25]) * R_e
 
-"""
-"""
-#z-axis 0 deg, inner=0.5
-sc1 = np.array([3.5, -10.0, -1.0]) * R_e
-sc2 = np.array([4.5, -10.0,  0.0]) * R_e
-sc3 = np.array([4.5,  -9.1339746, -1.5]) * R_e
-sc4 = np.array([4.5, -10.8660254, -1.5]) * R_e
-sc5 = np.array([4.0, -10.0, -0.5]) * R_e
-sc6 = np.array([4.0,  -9.5669873, -1.25]) * R_e
-sc7 = np.array([4.0, -10.4330127, -1.25]) * R_e
-"""
+#Get different points from SC_constellations.txt
+
 #z-axis 0 deg, inner=0.7
 sc1 = np.array([3.5, -10.0, -1.0]) * R_e
 sc2 = np.array([4.5, -10.0,  0.0]) * R_e
@@ -99,78 +60,71 @@ def generate_constellation(N, points, start_point, end_point):
     
     return constellation_positions
 
-"""
-for i in range(1001,1613):
-    file =  f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{i}.vlsv"
-    f = pt.vlsvfile.VlsvReader(file)
-    vg_B_value = f.read_interpolated_variable('vg_b_vol', )
-"""
-"""  
-#time = 1432
+def Timeseries(var = "vg_b_vol"):
+    header = ['Timeframe']
+    for i in range(len(points)):
+        header.extend([f'vg_B_x_point{i+1}', f'vg_B_y_point{i+1}', f'vg_B_z_point{i+1}'])
+    data = [header]
 
-header = ['Timeframe']
-for i in range(len(points)):
-    header.extend([f'vg_B_x_point{i+1}', f'vg_B_y_point{i+1}', f'vg_B_z_point{i+1}'])
-data = [header]
+    #Constant constellation over moving simulation
 
-#Constant constellation over moving simulation
+    for t in range(1001,1613):
+        #Open the .vlsv file 
+        file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
+        print(file)
+        vlsvfile = pt.vlsvfile.VlsvReader(file)
+        vg_B_values = [t]
+        #extract vg_b_vol values for all the points 
+        for point in points:
+            vg_B_value = vlsvfile.read_interpolated_variable('vg_v', point)
+            vg_B_values.extend(vg_B_value)
+        data.append(vg_B_values)
 
-for t in range(1001,1613):
-    #Open the .vlsv file 
-    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
-    print(file)
+
+    #create output .csv file 
+    output_filename = '/home/leeviloi/plas_obs_vir_vg_v_full_45deg.csv'
+    with open(output_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
+    return 
+
+def staticTime(start_point,end_point,time_step = 1432, N=100):
+
+    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time_step}.vlsv"
+    print(f"Simulation file: {file}")
     vlsvfile = pt.vlsvfile.VlsvReader(file)
-    vg_B_values = [t]
-    #extract vg_b_vol values for all the points 
-    for point in points:
-        vg_B_value = vlsvfile.read_interpolated_variable('vg_v', point)
-        vg_B_values.extend(vg_B_value)
-    data.append(vg_B_values)
 
+    #Current constellation total distance is 7.211 R_e
+    #For consistency between measurements try keeping about same
+    #Or distance between measurements at about ~459.41km
+    constellation = generate_constellation(N, points,np.array(start_point),np.array(end_point))
+    #fly up start end: [6,-11,-1],[10,-5,-1], 100 measurements
+    #z rotation = 0, fly through
+    #next [3.5,-10,-1] to [7.827,-10,-1] 60 measurements
 
-#create output .csv file path
-output_filename = '/home/leeviloi/plas_obs_vir_vg_v_full_45deg.csv' #<--- replace with own filepath
-with open(output_filename, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerows(data)
-"""
+    header = ['Position_Index']
 
-time_step = 1432 
-file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time_step}.vlsv"
-print(f"Simulation file: {file}")
-vlsvfile = pt.vlsvfile.VlsvReader(file)
-
-
-N = 60 #number of measurements
-#Current constellation total distance is 7.211 R_e
-#For consistency between measurements try keeping about same
-#Or distance between measurements at about ~459.41km
-constellation = generate_constellation(60, points,np.array([6,-6.5,-2]),np.array([10.327,-6.5,-2]))
-#fly up start end: [6,-11,-1],[10,-5,-1], 100 measurements
-#z rotation = 0, fly through
-#next [3.5,-10,-1] to [7.827,-10,-1] 60 measurements
-
-header = ['Position_Index']
-
-sc_keys = sorted(constellation.keys(), key=lambda x: int(x.replace('sc','')))
-for sc in sc_keys:
-    header.extend([f'{sc}_pos_x', f'{sc}_pos_y', f'{sc}_pos_z',   
-                   f'{sc}_vg_B_x', f'{sc}_vg_B_y', f'{sc}_vg_B_z'])
-
-data = [header]
-
-for i in range(N):
-    row = [i]
+    sc_keys = sorted(constellation.keys(), key=lambda x: int(x.replace('sc','')))
     for sc in sc_keys:
-        point = constellation[sc][i] 
-        row.extend(point) 
-        vg_B_value = vlsvfile.read_interpolated_variable('vg_b_vol', point)
-        
-        row.extend(vg_B_value)
-    data.append(row)
+        header.extend([f'{sc}_pos_x', f'{sc}_pos_y', f'{sc}_pos_z',   
+                    f'{sc}_vg_B_x', f'{sc}_vg_B_y', f'{sc}_vg_B_z'])
 
-output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_through_high_res+pos_z=-2_inner_scale=0.14.csv'  
-with open(output_filename, mode='w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerows(data)
+    data = [header]
 
+    for i in range(N):
+        row = [i]
+        for sc in sc_keys:
+            point = constellation[sc][i] 
+            row.extend(point) 
+            vg_B_value = vlsvfile.read_interpolated_variable('vg_b_vol', point)
+            
+            row.extend(vg_B_value)
+        data.append(row)
+
+    #Check variable!!
+    output_filename = '/home/leeviloi/plas_obs_vg_b_full_1352_tail_through+pos_z=-0.5_inner_scale=0.14.csv'  
+    with open(output_filename, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(data)
+
+staticTime(start_point=[-29.11,3,0.5],end_point=[-22,3,0.5], time_step=1352)
