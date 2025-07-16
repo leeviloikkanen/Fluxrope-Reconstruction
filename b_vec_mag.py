@@ -4,7 +4,7 @@
 #Virtual spacecraft locations in meters.
 #
 
-import pytools as pt
+import analysator as pt
 import numpy as np
 import csv
 #Virtual spacecraft (SC) locations 
@@ -13,14 +13,15 @@ R_e = 6371000
 
 #Get different points from SC_constellations.txt
 
-#z-axis 0 deg, inner=0.7
-sc1 = np.array([3.5, -10.0, -1.0]) * R_e
-sc2 = np.array([4.5, -10.0,  0.0]) * R_e
-sc3 = np.array([4.5, -9.1339746, -1.5]) * R_e
-sc4 = np.array([4.5, -10.8660254, -1.5]) * R_e
-sc5 = np.array([3.64285714, -10.0, -0.85714286]) * R_e
-sc6 = np.array([3.64285714, -9.87628209, -1.07142857]) * R_e
-sc7 = np.array([3.64285714, -10.12371791, -1.07142857]) * R_e
+#tail right z=0.5
+sc1 = np.array([-27.0, 3.0, 0.5]) * R_e
+sc2 = np.array([-26.0, 3.0, 1.5]) * R_e
+sc3 = np.array([-26.0, 3.86602540, 0.0]) * R_e
+sc4 = np.array([-26.0, 2.13397460, 0.0]) * R_e
+sc5 = np.array([-26.85714286, 3.0, 0.64285714]) * R_e
+sc6 = np.array([-26.85714286, 3.12371791, 0.42857143]) * R_e
+sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
+
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
@@ -60,15 +61,16 @@ def generate_constellation(N, points, start_point, end_point):
     
     return constellation_positions
 
-def Timeseries(var = "vg_b_vol"):
+def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
     header = ['Timeframe']
-    for i in range(len(points)):
-        header.extend([f'vg_B_x_point{i+1}', f'vg_B_y_point{i+1}', f'vg_B_z_point{i+1}'])
+    for sc in range(1,len(points)+1):
+        header.extend([f'sc{sc}_vg_B_x', f'sc{sc}_vg_B_y', f'sc{sc}_vg_B_z'])
+    
     data = [header]
 
     #Constant constellation over moving simulation
 
-    for t in range(1001,1613):
+    for t in range(start_time,end_time+1):
         #Open the .vlsv file 
         file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
         print(file)
@@ -76,13 +78,13 @@ def Timeseries(var = "vg_b_vol"):
         vg_B_values = [t]
         #extract vg_b_vol values for all the points 
         for point in points:
-            vg_B_value = vlsvfile.read_interpolated_variable('vg_v', point)
+            vg_B_value = vlsvfile.read_interpolated_variable('vg_b_vol', point)
             vg_B_values.extend(vg_B_value)
         data.append(vg_B_values)
 
 
     #create output .csv file 
-    output_filename = '/home/leeviloi/plas_obs_vir_vg_v_full_45deg.csv'
+    output_filename = '/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv'
     with open(output_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(data)
@@ -99,6 +101,7 @@ def staticTime(start_point,end_point,time_step = 1432, N=100):
     #Or distance between measurements at about ~459.41km
     constellation = generate_constellation(N, points,np.array(start_point),np.array(end_point))
     #fly up start end: [6,-11,-1],[10,-5,-1], 100 measurements
+    #start_point=[-29.11,3,0.5],end_point=[-22,3,0.5] tail 100 measurements
     #z rotation = 0, fly through
     #next [3.5,-10,-1] to [7.827,-10,-1] 60 measurements
 
@@ -122,9 +125,10 @@ def staticTime(start_point,end_point,time_step = 1432, N=100):
         data.append(row)
 
     #Check variable!!
-    output_filename = '/home/leeviloi/plas_obs_vg_b_full_1352_tail_through+pos_z=-0.5_inner_scale=0.14.csv'  
+    output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_up_high_res+pos_z=-1_inner_scale=0.14.csv'  
     with open(output_filename, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
 
-staticTime(start_point=[-29.11,3,0.5],end_point=[-22,3,0.5], time_step=1352)
+#staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
+Timeseries(start_time=1340,end_time=1372)

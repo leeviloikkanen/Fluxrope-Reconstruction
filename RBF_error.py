@@ -14,15 +14,16 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
-import pytools as pt
+import analysator as pt
 import matplotlib as mpl
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1352_tail_through+pos_z=-0.5_inner_scale=0.14.csv")
+df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 #CHECK TIME
-t = 1352
+t = 1432
 #files 
 file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t}.vlsv"
+print(file)
 vlsvfile = pt.vlsvfile.VlsvReader(file)
 
 R_e = 6371000   
@@ -32,7 +33,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 90        
+pos_idx = 40        
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -540,7 +541,10 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     #fig.tight_layout()
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = {t}", fontsize = 20)
     if save:
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD.png")
+        if rel_error:
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD.png")
+        else: 
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_abs_error.png")                
     return
 
 
@@ -923,7 +927,7 @@ def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = T
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_shells.png")
         else: 
             plt.suptitle(f"Cumulative error, Position: {pos}")
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
 
 def W_rel_stats(save = True, anim = False):
     """
@@ -1009,7 +1013,7 @@ def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
     return pv.MultiBlock(curved)                
 
 
-def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True):
+def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True, extended_x = False):
     """
     interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
     to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
@@ -1022,10 +1026,12 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
     sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3)/1000.0  
 
     padding = pad
+    if extended_x:
+        extend_x = 1.5*R_e_km
     #For the integration set resolution to be more directly correlated to step size
     bounds_km = np.array([
-        sc_now[:, 0].min() - padding * R_e_km,
-        sc_now[:, 0].max() + padding * R_e_km,
+        sc_now[:, 0].min() - extend_x - padding * R_e_km,
+        sc_now[:, 0].max() + extend_x + padding * R_e_km,
         sc_now[:, 1].min() - padding * R_e_km,
         sc_now[:, 1].max() + padding * R_e_km,
         sc_now[:, 2].min() - padding * R_e_km,
@@ -1108,7 +1114,7 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
         font_size=15
     )
     if save:
-        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_high_res_z=-2_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
+        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
     if ood:
         pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
     
@@ -1130,10 +1136,10 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
+plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
-#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 35)
+#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
 #W_rel_stats(anim = True)
-fieldlines_3D(save=False,pos=50,ood = True)
+#fieldlines_3D(save=False,pos=45,ood = True)
