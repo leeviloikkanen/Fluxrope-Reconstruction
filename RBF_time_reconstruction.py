@@ -196,5 +196,24 @@ def plot_rbf_slices(t_idx, nx=200, ny=200, L_Re=1.2):
     plt.suptitle(f"RBF reconstruction at Time = {row['Timeframe']:.1f} s")
     plt.savefig(f"/home/leeviloi/fluxrope_thesis/timeseries_tail/test/RBF_timeseries_reconstruction_{t_idx}s.png")
     plt.close()
+    return
+
+
+def plot_Wass_time():
+
+    """
+    Convex hull at time index and calculate Wasserstein distance from that. 
+    Calculate Wasserstein distance from hull also in Vlasiator timestep 
+    Plot W_rel/time
+    for time in times:
+        read Vlasitor
+        get points in hull for vlasitor and RBF
+        Calculate W_rels
+    Plot
+    """
+
+    return 
+
+#RUN 
 for i in range(T):
     plot_rbf_slices(t_idx= i)

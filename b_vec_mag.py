@@ -13,6 +13,10 @@ R_e = 6371000
 
 #Get different points from SC_constellations.txt
 
+"""
+Add the rotation matrix script here to automate making the points
+Then scale factor multiplier to constellation size.
+"""
 #tail right z=0.5
 sc1 = np.array([-27.0, 3.0, 0.5]) * R_e
 sc2 = np.array([-26.0, 3.0, 1.5]) * R_e
