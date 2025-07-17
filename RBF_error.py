@@ -380,6 +380,7 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
     B_RBF = [Bx_RBF.ravel(), By_RBF.ravel(),Bz_RBF.ravel()]
     B_vlas =[Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()]
     
+    
     fig, axes = plt.subplots(1,3, figsize=(12, 3.5))
     labels = ["$B_x$","$B_y$","$B_z$"]
     axis = ["x","y","z"]
