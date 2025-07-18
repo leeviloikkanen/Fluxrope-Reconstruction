@@ -1137,7 +1137,7 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
+#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)

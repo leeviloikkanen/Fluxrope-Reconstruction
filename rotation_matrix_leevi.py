@@ -35,10 +35,26 @@ vecs = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4],[x5,y5,z5],[x6,y6,z6],[x7,y7
 rotation = 0 #45 rad is about 58 degrees            
 trans =[-27,3,0.5]
 
-for vec in vecs:
-    vec_rot = rotate_vector(vec, "z", rotation) 
-    vec_final=np.array(translate_vec(vec_rot,trans))
-    scaled_vec = vec_final
-    print(scaled_vec)
-    #print(vec_final)
+def get_sc_locations(rotation, translation, 
+                     in_scl=7, scale_constellation=1.0):
+   
+    outer = np.array([
+        [0, 0, 0],
+        [1, 0, 1],
+        [1, np.sqrt(3)/2, -1/2],
+        [1, -np.sqrt(3)/2, -1/2],
+    ])
+    
+    inner = outer[1:] / in_scl
+
+    all_pts = np.vstack((outer, inner)) * scale_constellation
+
+    sc_locs = []
+    for v in all_pts:
+        # rotate about Z, then translate
+        v_rot   = rotate_vector(v, 'z', rotation)
+        v_trans = translate_vec(v_rot, translation)
+        sc_locs.append(v_trans)
+
+    return np.vstack(sc_locs)
 

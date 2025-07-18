@@ -7,6 +7,7 @@
 import analysator as pt
 import numpy as np
 import csv
+from rotation_matrix_leevi import get_sc_locations
 #Virtual spacecraft (SC) locations 
 #Multiply by R_e is coordinates in R_e 
 R_e = 6371000
@@ -17,6 +18,7 @@ R_e = 6371000
 Add the rotation matrix script here to automate making the points
 Then scale factor multiplier to constellation size.
 """
+points = get_sc_locations(rotation=0,translation=[-27,3,0.5])
 #tail right z=0.5
 sc1 = np.array([-27.0, 3.0, 0.5]) * R_e
 sc2 = np.array([-26.0, 3.0, 1.5]) * R_e
@@ -28,6 +30,9 @@ sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
 
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
+points = get_sc_locations(rotation=0,translation=[-27,3,0.5])
+points = points
+print(points)
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
 #Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
@@ -68,7 +73,7 @@ def generate_constellation(N, points, start_point, end_point):
 def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
     header = ['Timeframe']
     for sc in range(1,len(points)+1):
-        header.extend([f'sc{sc}_vg_B_x', f'sc{sc}_vg_B_y', f'sc{sc}_vg_B_z'])
+        header.extend([f"sc{sc}_vg_B_x", f"sc{sc}_vg_B_y", f"sc{sc}_vg_B_z"])
     
     data = [header]
 
@@ -135,4 +140,4 @@ def staticTime(start_point,end_point,time_step = 1432, N=100):
         writer.writerows(data)
 
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
-Timeseries(start_time=1340,end_time=1372)
+#Timeseries(start_time=1340,end_time=1372)

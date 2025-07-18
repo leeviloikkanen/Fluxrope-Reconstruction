@@ -215,5 +215,5 @@ def plot_Wass_time():
     return 
 
 #RUN 
-for i in range(T):
-    plot_rbf_slices(t_idx= i)
+#for i in range(T):
+#    plot_rbf_slices(t_idx= i)
