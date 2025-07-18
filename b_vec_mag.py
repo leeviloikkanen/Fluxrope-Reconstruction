@@ -18,7 +18,7 @@ R_e = 6371000
 Add the rotation matrix script here to automate making the points
 Then scale factor multiplier to constellation size.
 """
-points = get_sc_locations(rotation=0,translation=[-27,3,0.5])
+"""
 #tail right z=0.5
 sc1 = np.array([-27.0, 3.0, 0.5]) * R_e
 sc2 = np.array([-26.0, 3.0, 1.5]) * R_e
@@ -30,6 +30,7 @@ sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
 
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
+"""
 points = get_sc_locations(rotation=0,translation=[-27,3,0.5])
 points = points
 print(points)
