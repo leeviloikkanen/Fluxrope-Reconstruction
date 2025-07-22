@@ -209,6 +209,7 @@ def plot_rbf_slices(time, nx=200, ny=200, L_Re=1.2,output_dir = None, output_fil
             
     plt.savefig(output_file)
     plt.close()
+    
     return
 
 
@@ -366,6 +367,7 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         output_file = output_dir+output_file
         
         plt.savefig(output_file)
+
     return 
 
 

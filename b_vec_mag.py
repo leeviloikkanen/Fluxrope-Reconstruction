@@ -31,9 +31,8 @@ sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 """
-points = get_sc_locations(rotation=0,translation=[-27,3,0.5])
-points = points
-print(points)
+points = get_sc_locations(rotation=0,translation=[-27,3,0.5], in_scl=5,scale_constellation=1)
+
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
 #Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
@@ -100,7 +99,7 @@ def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
         writer.writerows(data)
     return 
 
-def staticTime(start_point,end_point,time_step = 1432, N=100):
+def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, scale = 1):
 
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time_step}.vlsv"
     print(f"Simulation file: {file}")
@@ -135,10 +134,17 @@ def staticTime(start_point,end_point,time_step = 1432, N=100):
         data.append(row)
 
     #Check variable!!
-    output_filename = '/home/leeviloi/plas_obs_vg_b_full_1432_fly_up_high_res+pos_z=-1_inner_scale=0.14.csv'  
+    output_filename = f"/home/leeviloi/fluxrope_thesis/scaled_constellation_data/plas_obs_vg_b_full_1432_through_high_res+pos_z=-2.6_inner_scale=0.2_cnst_scl={np.round(scale,1)}.csv"
     with open(output_filename, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
 
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
 #Timeseries(start_time=1340,end_time=1372)
+scales = np.linspace(0.5,2.5,11)
+
+for scale in scales:
+    points_scl = get_sc_locations(rotation=0,translation=[6,-6.5,-2.6],in_scl=5,scale_constellation=scale)
+    points_scl = points_scl*R_e
+    staticTime([6,-6.5,-2.6],[10.327,-6.5,-2.6],points=points_scl,N=60,scale=scale)
+    

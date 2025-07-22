@@ -12,13 +12,18 @@ import pandas as pd
 import pyvista as pv
 import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
+import scipy.linalg
+import scipy.optimize
 from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
 import analysator as pt
 import matplotlib as mpl
+import scipy 
 
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
+scale = 1.1
+df = pd.read_csv(f"/home/leeviloi/fluxrope_thesis/scaled_constellation_data/plas_obs_vg_b_full_1432_through_high_res+pos_z=-2.6_inner_scale=0.2_cnst_scl={scale}.csv")
+
 #CHECK TIME
 t = 1432
 #files 
@@ -29,11 +34,11 @@ vlsvfile = pt.vlsvfile.VlsvReader(file)
 R_e = 6371000   
 R_e_km  = 6371.0
 #Size of area to consider
-Lsize = 1.2
+Lsize = 1.5
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 40        
+pos_idx = 30        
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -55,7 +60,52 @@ selected_points = all_points[start_idx*7:end_idx*7]
 centers = (df[pos_cols].to_numpy().reshape(T * 7, 3) / 1000.0)   # km
 values  =  df[B_cols].to_numpy().reshape(T * 7, 3)   
 
-def RBF_missing_data(missing_sc = None):
+#LOOCV method 
+
+def E_func(eps, centers, B_values):
+    N_pts = np.shape(centers)[0]
+    L= np.shape(centers)[1]
+    E = np.zeros([N_pts,L])
+    eps = abs(eps)
+    for i in range(N_pts):
+        r_used = np.vstack((centers[:i,:],centers[i+1:,:]))
+        b_used = np.vstack((values[:i,:],values[i+1:,:]))
+        rbf = RBFInterpolator(r_used,b_used, kernel="multiquadric",
+                    epsilon=eps,
+                    smoothing=0.0
+                    )
+        
+        B_recon_rbf = rbf(centers[i][None, :])[0]
+       
+        B_true = values[i,:]
+       
+        E[i,:] = B_true - B_recon_rbf
+    
+    return scipy.linalg.norm(E)
+
+#Slow own minimizatin function. Probably better to try use something like 
+#scipy.optimization.minimize. Values very small tho
+def find_eps(style = "log", start=-4,end =4,Num = 20):
+
+    if style == "log":
+        slots = np.logspace(start, end, Num)
+    elif style == "linear":
+        slots = np.linspace(start,end,Num)
+    else:
+        raise "Invalid style: either linear or log"
+    
+    min_eps = 1
+    min = 1
+    for i in slots:
+        
+        res = E_func(i,centers, values)
+        #print(res)
+        if res< min:
+            min = res
+            min_eps = i
+    return min_eps
+
+def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
     #Modify to select only sc that aren't in missing_sc then just same things as below: 
 
     if missing_sc is None:
@@ -72,7 +122,13 @@ def RBF_missing_data(missing_sc = None):
     "https://www.math.iit.edu/~fass/Dolomites.pdf?" #nearest neighbor method mentioned
     nbrs = NearestNeighbors(n_neighbors=2).fit(centers_inc)
     dists, _ = nbrs.kneighbors(centers_inc)
-    epsilon = np.median(dists[:, 1])
+    if eps_method == "neighbour":
+        epsilon = np.median(dists[:, 1])
+    if eps_method == "LOOCV":
+        #This is very slow and seemingly choise of epsilon >1e-3 makes little difference 
+        #run once and the manually set found epsilon.
+        epsilon = find_eps()
+    
     print(f"RBF epsilon (missing {missing_sc}) = {epsilon:.3g} km")
     
     #RBF interpolation
@@ -97,23 +153,6 @@ def RBF_missing_data(missing_sc = None):
 #inner tetra = ["sc5","sc6","sc7"]
 missing_sc =None
 rbf, included_pos_cols, included_B_cols = RBF_missing_data(missing_sc)
-"""
-#pick epsilon
-"https://www.math.iit.edu/~fass/Dolomites.pdf?" #nearest neighbor method mentioned
-nbrs = NearestNeighbors(n_neighbors=2).fit(centers)
-dists, _ = nbrs.kneighbors(centers)
-epsilon = np.median(dists[:,1])
-
-print(f"RBF epsilon = {epsilon:.3g} km")
-
-#RBF interpolation
-rbf = RBFInterpolator(
-    centers, values,
-    kernel="multiquadric",
-    epsilon=epsilon,
-    smoothing=0.0
-)
-"""
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
 cluster_now = row[pos_cols].to_numpy().reshape(7, 3) / 1000.0     
@@ -543,9 +582,9 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = {t}", fontsize = 20)
     if save:
         if rel_error:
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD.png")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD_scale_{scale}_new_eps.png")
         else: 
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_abs_error.png")                
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_abs_error.png")                
     return
 
 
@@ -970,8 +1009,10 @@ def W_rel_stats(save = True, anim = False):
     for ax, w, lab in zip(axes, series, labels):
         w = np.asarray(w)
         p90 = np.percentile(w, 90)          
-        p10 = np.percentile(w,10)
+        p50 = np.percentile(w,50)
 
+        ax.axvline(p50, color="blue", ls="--",lw =1.8,
+                label=f"Median: {np.round(p50,2)}")
         ax.axvline(p90, color="crimson", ls="--", lw=1.8,
                label=f"90%: {np.round(p90,2)}")
         bin_edges = np.linspace(0, 1.6, 51)
@@ -984,7 +1025,7 @@ def W_rel_stats(save = True, anim = False):
     fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                 fontsize=14)    
     if save: 
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/W_rel_stats_3D_bins=50.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/W_rel_stats_3D_bins=50__in_scl=0.2_scale={scale}_2.png")
     return
 
 def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
@@ -1137,10 +1178,10 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=False)
+#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
-#W_rel_stats(anim = True)
+#W_rel_stats(anim = False)
 #fieldlines_3D(save=False,pos=45,ood = True)
