@@ -35,7 +35,7 @@ vecs = [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3],[x4,y4,z4],[x5,y5,z5],[x6,y6,z6],[x7,y7
 rotation = 0 #45 rad is about 58 degrees            
 trans =[-27,3,0.5]
 
-def get_sc_locations(rotation, translation, 
+def get_sc_locations(rotation, translation,axis = "z", 
                      in_scl=7, scale_constellation=1.0):
    
     outer = np.array([
@@ -51,8 +51,8 @@ def get_sc_locations(rotation, translation,
 
     sc_locs = []
     for v in all_pts:
-        # rotate about Z, then translate
-        v_rot   = rotate_vector(v, 'z', rotation)
+        #rotate vector and then traslate
+        v_rot   = rotate_vector(v, axis, rotation)
         v_trans = translate_vec(v_rot, translation)
         sc_locs.append(v_trans)
 

@@ -134,17 +134,19 @@ def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, sc
         data.append(row)
 
     #Check variable!!
-    output_filename = f"/home/leeviloi/fluxrope_thesis/scaled_constellation_data/plas_obs_vg_b_full_1432_through_high_res+pos_z=-2.6_inner_scale=0.2_cnst_scl={np.round(scale,1)}.csv"
+    output_filename = f"/home/leeviloi/fluxrope_thesis/scaled_constellation_data/fly_up/plas_obs_vg_b_full_1432_fly_up_z=-1_inner_scale=0.2_cnst_scl={np.round(scale,1)}.csv"
     with open(output_filename, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
-
+#[6,-11,-1],[10,-5,-1]
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
 #Timeseries(start_time=1340,end_time=1372)
-scales = np.linspace(0.5,2.5,11)
+#High res fly through:[6,-6.5,-2.6],[10.327,-6.5,-2.6]
+scales = np.linspace(0.5,1.9,8)
+print(scales)
 
+#GIVE angle for rotation in RADIANS!
 for scale in scales:
-    points_scl = get_sc_locations(rotation=0,translation=[6,-6.5,-2.6],in_scl=5,scale_constellation=scale)
+    points_scl = get_sc_locations(rotation=45,translation=[6,-11,-1],in_scl=5,scale_constellation=scale)
     points_scl = points_scl*R_e
-    staticTime([6,-6.5,-2.6],[10.327,-6.5,-2.6],points=points_scl,N=60,scale=scale)
-    
+    staticTime([6,-11,-1],[10,-5,-1],points=points_scl,N=100,scale=scale)
