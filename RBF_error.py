@@ -22,7 +22,7 @@ import scipy
 
 #Shared info
 scale = 1.7
-df = pd.read_csv(f"/home/leeviloi/fluxrope_thesis/scaled_constellation_data/fly_up/plas_obs_vg_b_full_1432_fly_up_z=-1_inner_scale=0.2_cnst_scl={scale}.csv")
+df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 
 #CHECK TIME
 t = 1432
@@ -34,7 +34,7 @@ vlsvfile = pt.vlsvfile.VlsvReader(file)
 R_e = 6371000   
 R_e_km  = 6371.0
 #Size of area to consider
-Lsize = 2.0
+Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
@@ -351,18 +351,18 @@ plt.show()
 ##########
 #PLOTTING#
 ##########
-def plot_point_wise_error(save = True, points = points):
+def plot_point_wise_error(save = True, points = points, rel_error = True, err_vmax = 1.5e-8):
     """
     Plots all 3 planes of point-wise errors between vlasiator and RBF 
     at a simulation position.
     TODO: have input be the planes instead of using specificied planes already
     NOTE full_rbf_vlas_comp more up-to-date use of same function
     """
-    fig, axes = plt.subplots(1, 3, figsize=(20, 6), constrained_layout=True)
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), constrained_layout=True)
 
-    err_xy =  error_perscentage(XY_RBF,XY_Vlas)
-    err_xz = error_perscentage(XZ_RBF,XZ_Vlas)
-    err_yz =error_perscentage(YZ_RBF,YZ_Vlas)
+    err_xy = error_perscentage(XY_RBF,XY_Vlas, rel_error=rel_error)
+    err_xz = error_perscentage(XZ_RBF,XZ_Vlas, rel_error=rel_error)
+    err_yz = error_perscentage(YZ_RBF,YZ_Vlas, rel_error=rel_error)
     panels = [
         ("X-Y  (z = {:.0f} km)".format(bary_vlas[2]/1e3), err_xy , ("X","Y")),
         ("X-Z  (y = {:.0f} km)".format(bary_vlas[1]/1e3), err_xz, ("X","Z")),
@@ -370,10 +370,20 @@ def plot_point_wise_error(save = True, points = points):
     ]
     #err_min = min(data[-1].min() for data in (err_xy, err_xz, err_yz))
     #err_max = max(data[-1].max() for data in (err_xy, err_xz, err_yz))
+    if rel_error:
+        err_vmin, err_vmax = 0.0, 50.0                     
+        levels   = np.linspace(err_vmin, err_vmax, 31)     
+        norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+        error_lbl = "Error (%)"
+        error_title = "point-wise error (%)"
+    else:
 
-    err_vmin, err_vmax = 0.0, 50.0                     
-    levels   = np.linspace(err_vmin, err_vmax, 31)     
-    norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+        err_vmin, err_vmax = 0.0, err_vmax
+        levels   = np.linspace(err_vmin, err_vmax, 31)
+        norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
+        error_lbl = "|ΔB|"  
+        error_title = "Absolute point-wise error"          
+
 
     for ax, (title, (P,Q,error), (lab1,lab2)) in zip(axes, panels):
         
@@ -388,12 +398,12 @@ def plot_point_wise_error(save = True, points = points):
         elif lab2 == "Z":           v = points[:,2]/1e6
         else:                       v = points[:,0]/1e6   
         ax.margins(0) 
-        ax.scatter(u, v, c="k", s=40, label="spacecraft")
+        ax.scatter(u, v, c="k", s=20, label="spacecraft")
         ax.set_xlabel(f"{lab1}  (10³ km)")
         ax.set_ylabel(f"{lab2}  (10³ km)")
         ax.set_aspect("equal")
         ax.set_title(title)
-        ax.legend(loc="upper right",fontsize="small")
+    axes[0].legend(loc="upper right",fontsize="small")
 
     sm = mpl.cm.ScalarMappable(cmap="viridis",
                             norm=norm)
@@ -401,11 +411,11 @@ def plot_point_wise_error(save = True, points = points):
     #sm = mpl.cm.ScalarMappable(cmap="viridis",
     #                           norm=mpl.colors.Normalize(vmin=err_min, vmax=err_max))
     fig.colorbar(sm, ax=axes.ravel().tolist(),
-                orientation="vertical", label="Error %")
-    fig.suptitle(f"Relative error at Position = {pos_idx} at {t}s", fontsize=16)
+                orientation="vertical", label=error_lbl)
+    fig.suptitle(f"{error_title} at Position = {pos_idx} at {t}s", fontsize=16)
 
     if save: 
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/error_threeslice_L=1.2_pos={pos_idx}_1432s.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/error_threeslice_L={Lsize}_pos={pos_idx}_{t}s_3.png")
     return
 
 def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"):
@@ -1179,10 +1189,11 @@ def full_comp_anim():
 
 #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
 
-plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
+#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
 #full_Wasser_hist(vlas_planes,RBF_planes)
 #Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
 #W_rel_stats(anim = False)
 #fieldlines_3D(save=False,pos=45,ood = True)
+plot_point_wise_error(rel_error=False)

@@ -24,12 +24,21 @@ SC1-4 overall means (from 1353 onwards):
   vg_v_y = -332263.0899893005
   vg_v_z = 165187.1091635656
 """
-
+"""
+SC1-4 overall means pre 1353:
+  vg_v_x = -544078.8175128276
+  vg_v_y = -181801.77131761858
+  vg_v_z = 121311.91965101559
+"""
 output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
-vg_v_x = -739256.9
-vg_v_y = -268152.8
-vg_v_z = 147101.5
+#vg_v_x = -739256.9
+#vg_v_y = -268152.8
+#vg_v_z =  147101.5
+
+vg_v_x = -544078.8175128276
+vg_v_y = -181801.77131761858
+vg_v_z = 121311.91965101559
 
 vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
 
@@ -383,7 +392,7 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     
     return
 
-def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200):
+def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8):
     """
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
@@ -437,7 +446,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         error_title = "point-wise error (%)"
     else:
 
-        err_vmin, err_vmax = 0.0, 1.5e-8
+        err_vmin, err_vmax = 0.0, err_vmax
         levels   = np.linspace(err_vmin, err_vmax, 31)
         norm     = mpl.colors.Normalize(vmin=err_vmin, vmax=err_vmax)
         error_lbl = "|ΔB|"  
@@ -450,8 +459,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         #Component naming here wrong but makes no difference with absolute error
         Pr, Qr, Bxr, Byr, Bzr = rbf_plane
         Pv, Qv, Bxv, Byv, Bzv = vlas_plane     
-        if not np.allclose(Pr,Pv/1e3) and np.allclose(Qr,Qv/1e3):
-            raise ValueError("fields dont match")
+        
         dBx = Bxr - Bxv
         dBy = Byr - Byv
         dBz = Bzr - Bzv
@@ -554,7 +562,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
 
         if output_file == None:
             if rel_error:
-                output_file = f"full_vlas_rbf_comp__time={time}_L={L_Re}_GOOD_scale.png"
+                output_file = f"full_vlas_rbf_comp_time={time}_L={L_Re}_GOOD_scale.png"
             else: 
                 output_file = f"full_vlas_rbf_comp_time={time}_L={L_Re}_abs_error.png"
         
@@ -727,4 +735,5 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
 #for i in df["Timeframe"]:
 #   plot_vlas_slices(time = i, output_dir=output_dir)
-plot_vlas_RBF_error(time = 1365, output_dir=output_dir)
+#plot_vlas_RBF_error(time = 1360,rel_error=False,err_vmax=0.8e-8, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_abs_error_max_err=0.8e-8.png")
+plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_pre_1353s.png")
