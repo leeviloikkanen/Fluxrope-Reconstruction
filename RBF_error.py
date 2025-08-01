@@ -5,7 +5,6 @@
 #https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2023EA003369
 
 #NOTE: SOME FUNCTION HAVE NOT PROPERLY BEEN UPDATED SO THERE MIGHT BE SOME ERRORS (namely plot_hist_component_comparison() needs index map)
-#TODO: modify functions to have directly some folder_dir+identifier to automatically change file names and locations at start 
 
 import numpy as np
 import pandas as pd
@@ -23,6 +22,9 @@ import scipy
 #Shared info
 scale = 1.7
 df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
+
+#TODO: modify functions to have directly some folder_dir+identifier to automatically change file names and locations at start 
+output_dir = ""
 
 #CHECK TIME
 t = 1432

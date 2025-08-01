@@ -6,7 +6,7 @@
 #Specifically timeseries reconstruction of FHA run between 1340-1372s
 #Determined Bulk velocity from 4 outside spacecraft average to avoid bias of inner tetrahedron. 
 #Timeseries start when spacecrafts come in contact with flux rope structure and ends when last spacecraft loses contact
-#Taylor's hypothesis is assumed to hold (at least for the fluxrope)
+
 
 import numpy as np
 import pandas as pd
@@ -19,42 +19,26 @@ import analysator as pt
 import scipy
 
 """
-SC1-4 overall means (from 1353 onwards):
-  vg_v_x = -884632.1570458194
-  vg_v_y = -332263.0899893005
-  vg_v_z = 165187.1091635656
+#SC1-4 overall means (from 1353 onwards):
+vg_v_x = -884632.1570458194
+vg_v_y = -332263.0899893005
+vg_v_z = 165187.1091635656
 """
 """
-SC1-4 overall means pre 1353:
-  vg_v_x = -544078.8175128276
-  vg_v_y = -181801.77131761858
-  vg_v_z = 121311.91965101559
-"""
-output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
-
-#vg_v_x = -739256.9
-#vg_v_y = -268152.8
-#vg_v_z =  147101.5
-
+#SC1-4 overall means pre 1353:
 vg_v_x = -544078.8175128276
 vg_v_y = -181801.77131761858
 vg_v_z = 121311.91965101559
+"""
+
+#SC1-4 overall mean:
+vg_v_x = -739256.9
+vg_v_y = -268152.8
+vg_v_z =  147101.5
+
+output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
 vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
-
-#TIP for future Leevi KEEP EVERYTHING IN METERS
-#well done 
-#Time series reconstruction code structure
-"""
-Only main differences to static case: 
-    -No constant vlasiator time to compare to (still have to figure this out in terms of coordinates and stuff)
-    -Instead of having the centers ready from the file using the bulk velocity calculating the
-     centers for each timestep.
-    -other than that everything prettymuch the same. 
-    IDEA: for first problem on list: select constant Vlasiator timestep where fluxrope is the best. have that basis for coordinates
-    TODO see IDEA
-"""
-#COPIED FROM RBF_error.py
 
 #Shared info
 df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv")
@@ -75,10 +59,10 @@ sc_init = {
 times = df["Timeframe"].to_numpy() 
 T = len(times)
 sc_names  = [f"sc{i}" for i in range(1, 8)]
-#lets make a df[pos_columns]
 
 df["dt"] = df["Timeframe"] - df["Timeframe"].iloc[0]
 
+#Make artificial spacecraft location for RBF reconstructions
 for sc, init_pos in sc_init.items():
     df[f"{sc}_pos_x"] = init_pos[0] + vel_bulk[0] * df["dt"]
     df[f"{sc}_pos_y"] = init_pos[1] + vel_bulk[1] * df["dt"]
@@ -124,7 +108,7 @@ def E_func(eps, centers, values):
 #Slow own minimizatin function. Probably better to try use something like 
 #scipy.optimization.minimize. Values very small tho
 def find_eps(centers, values, style = "log", start = -4, end = 4, Num = 20):
-
+    #Simple function to loop through epsilon values to find best one
     if style == "log":
         slots = np.logspace(start, end, Num)
     elif style == "linear":
@@ -144,6 +128,7 @@ def find_eps(centers, values, style = "log", start = -4, end = 4, Num = 20):
             min_eps = i
     return min_eps, min
 
+#MAIN RBF reconstruction function 
 def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
     #Modify to select only sc that aren't in missing_sc then just same things as below: 
 
@@ -178,20 +163,22 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
         epsilon=epsilon,
         smoothing=0.0
     )
-    """
-    Outline: 
-        -be able to select which spacecraft to drop
-        then select the remaining SC from the data frame and calculate new RBF 
-        NOTE: With new RBF have to be very careful how it effects the logic of all other
-        fuctions, so implement with care!
-        One way would be maybe that the function is always called but the data missing = None?
-    """
 
     return rbf, included_pos_cols, included_B_cols
 
 rbf, included_pos_cols, included_B_cols =  RBF_missing_data()
 
 def sample_slice(coord1, coord2, const_coord, plane, nx, ny):
+    """
+    Samples a slice of the RBF reconstruction at give coordinates
+    coord1, coord2 : arrays of x and y coordinates respectively
+    const_coord : Constant coordinate, last location coordinate of plane
+    Ex. use: 
+        xs = np.linspace(bary[0]-L_m, bary[0]+L_m, nx)
+        ys = np.linspace(bary[1]-L_m, bary[1]+L_m, ny)
+
+        XY = sample_slice(xs, ys, bary[2], "xy", nx, ny)
+    """
     if plane == "xy":
         X, Y = np.meshgrid(coord1, coord2)
         pts  = np.column_stack([X.ravel(), Y.ravel(),
@@ -216,6 +203,8 @@ def sample_slice(coord1, coord2, const_coord, plane, nx, ny):
         Bxyz = rbf(pts)
         Bx, By, Bz = [Bxyz[:,i].reshape(ny,nx) for i in range(3)]
         return Y, Z, By, Bz, Bx
+    else:
+        raise "Invalid Plane, Options: xy, xz, yz"     
 
 def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny = 200,L_Re = 1.2):
     
@@ -271,11 +260,21 @@ def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny =
                                 Y.ravel(), Z.ravel()])
         Bxyz = vlsvfile.read_interpolated_variable("vg_b_vol", pts)
         Bx, By, Bz = (Bxyz[:, i].reshape(nx, ny) for i in range(3))
-        return Y, Z, By, Bz, Bx                           
+        return Y, Z, By, Bz, Bx   
+    else:
+        raise "Invalid Plane, Options: xy, xz, yz"                        
                            
 def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
     """
     Plotting vlasiators slices at the barycenter of the spacecraft constellations
+
+    time : Time of reconstruction 
+    save : Save figure 
+    L_Re : Set size of slice
+    nx, ny : Grid resolution
+    output_dir : Output file directory for saving figure
+    output_file : Output file name 
+    
     """
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
     print(file)
@@ -332,9 +331,16 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
 
 def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None):
     """
-    Plots stuff obviously duhhh
-    maybe add more comments 
+    Plots the RBF reconstruction at the bary center of the spacecraft constellation
+
+    time : Time of reconstruction 
+    L_Re : Set size of slice
+    nx, ny : Grid resolution
+    output_dir : Output file directory for saving figure
+    output_file : Output file name 
+    
     """
+    #Find coordinates of times
     row = df[df["Timeframe"] == time].iloc[0]
     cluster = row[pos_cols].to_numpy().reshape(-1,3)
     bary    = cluster.mean(axis=0)
@@ -344,6 +350,7 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     ys = np.linspace(bary[1]-L_m, bary[1]+L_m, ny)
     zs = np.linspace(bary[2]-L_m, bary[2]+L_m, ny)
 
+    #Sample the coordinates 
     XY = sample_slice(xs, ys, bary[2], "xy", nx, ny)
     XZ = sample_slice(xs, zs, bary[1], "xz", nx, ny)
     YZ = sample_slice(ys, zs, bary[0], "yz", nx, ny)
@@ -397,11 +404,17 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
     the magnetic field strenght of the first two rows)  
-
-    How i want to structure this: 
-        -can just choose time. no plane varibles. 
-        -calculate error here between vlas and rbf plane check Wass function for 
-        details since planes at different places but same size. 
+    
+    time : Time of reconstruction 
+    save : Save figure
+    L_Re : Set size of slice
+    nx, ny : Grid resolution
+    rel_error : Toggle between relative error and absolute error
+    err_vmax : Set max error for the absolute error (should also be implemented for relative error)
+    output_dir : Output file directory for saving figure
+    output_file : Output file name 
+    
+    TODO: Recenter RBF points to original points. Could be just set vlasiator grid for RBF grid
     """
     #Vlasitor DATA
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
@@ -692,6 +705,7 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         W_y.append(data[1])
         W_z.append(data[2])
         error.append(error_frac)
+    print(f"W_rel 50th percentiles: W_x = {np.percentile(W_x,50)} W_y = {np.percentile(W_y,50)}, W_z = {np.percentile(W_z,50)}")
     if save:
         fig, ax = plt.subplots(1, 2, figsize=(12,5))
     
@@ -711,7 +725,7 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         ax[1].set_ylabel(r"Point-wise error")
         ax[1].set_title(f"Fraction of points with error <{error_cutoff}%")
         ax[1].grid(True, alpha=0.3)
-        fig.suptitle(f"Bulk velocity: ({vg_v_x},{vg_v_y},{vg_v_z}) m/s")
+        fig.suptitle(f"Bulk velocity: ({np.round(vg_v_x,1)},{np.round(vg_v_y,1)},{np.round(vg_v_z,1)}) m/s")
         fig.tight_layout()
 
         if output_dir == None:
@@ -735,5 +749,5 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
 #for i in df["Timeframe"]:
 #   plot_vlas_slices(time = i, output_dir=output_dir)
-#plot_vlas_RBF_error(time = 1360,rel_error=False,err_vmax=0.8e-8, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_abs_error_max_err=0.8e-8.png")
-plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_pre_1353s.png")
+plot_vlas_RBF_error(time = 1360, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_error_max_err=120.png")
+#plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_thight.png", save = False)
