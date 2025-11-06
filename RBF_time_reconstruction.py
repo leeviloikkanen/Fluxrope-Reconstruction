@@ -171,8 +171,11 @@ rbf, included_pos_cols, included_B_cols =  RBF_missing_data()
 def sample_slice(coord1, coord2, const_coord, plane, nx, ny):
     """
     Samples a slice of the RBF reconstruction at give coordinates
-    coord1, coord2 : arrays of x and y coordinates respectively
-    const_coord : Constant coordinate, last location coordinate of plane
+    :kword coord1: array of x coordinates
+    :kword coord2: array of y coordinates
+    :kword const_coord: Constant coordinate, last location coordinate of plane
+    :kword plane: Plane wanted to be sliced
+    
     Ex. use: 
         xs = np.linspace(bary[0]-L_m, bary[0]+L_m, nx)
         ys = np.linspace(bary[1]-L_m, bary[1]+L_m, ny)
@@ -268,12 +271,11 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
     """
     Plotting vlasiators slices at the barycenter of the spacecraft constellations
 
-    time : Time of reconstruction 
-    save : Save figure 
-    L_Re : Set size of slice
-    nx, ny : Grid resolution
-    output_dir : Output file directory for saving figure
-    output_file : Output file name 
+    :kword time: Time of reconstruction 
+    :kword save: Save figure 
+    :kword L_Re: Set size of slice
+    :kword output_dir: Output file directory for saving figure
+    :kword output_file: Output file name 
     
     """
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
@@ -333,11 +335,10 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     """
     Plots the RBF reconstruction at the bary center of the spacecraft constellation
 
-    time : Time of reconstruction 
-    L_Re : Set size of slice
-    nx, ny : Grid resolution
-    output_dir : Output file directory for saving figure
-    output_file : Output file name 
+    :kword time: Time of reconstruction 
+    :kword L_Re: Set size of slice
+    :kword output_dir: Output file directory for saving figure
+    :kword output_file: Output file name 
     
     """
     #Find coordinates of times

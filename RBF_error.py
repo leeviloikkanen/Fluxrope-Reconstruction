@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 import scipy.linalg
 import scipy.optimize
-from scipy.stats import wasserstein_distance
+from scipy.stats import wasserstein_distance, wasserstein_distance_nd
 from sklearn.neighbors import NearestNeighbors
 import analysator as pt
 import matplotlib as mpl
 import scipy 
 
 #Shared info
+#Scale only relavant when using multiple scale runs
+#generally not relavant
 scale = 1.7
 df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 
@@ -40,7 +42,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 20        
+pos_idx = 66        
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -167,6 +169,15 @@ def sample_slice(coord1, coord2, const_coord, plane):
     order of coordinates is dependant on chosen plane
     ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
     Out of plane component will always be last
+
+    Samples a slice of the RBF reconstruction at give coordinates
+    coord1, coord2 : arrays of x and y coordinates respectively
+    const_coord : Constant coordinate, last location coordinate of plane
+    Ex. use: 
+        xs = np.linspace(bary[0]-L_m, bary[0]+L_m, nx)
+        ys = np.linspace(bary[1]-L_m, bary[1]+L_m, ny)
+
+        XY = sample_slice(xs, ys, bary[2], "xy", nx, ny)
     """
     if plane == "xy":
         X, Y = np.meshgrid(coord1, coord2)                           
@@ -200,7 +211,9 @@ XY_RBF = sample_slice(x, y, bary_rbf[2], "xy")
 XZ_RBF = sample_slice(x, z, bary_rbf[1], "xz")       
 YZ_RBF = sample_slice(y, z, bary_rbf[0], "yz")   
 
-#Vlasiator
+###########
+#Vlasiator#
+###########
 
 #location of spacecrafts at desired index
 sc_names = [f"sc{i}" for i in range(1, 8)]
@@ -353,6 +366,7 @@ plt.show()
 ##########
 #PLOTTING#
 ##########
+
 def plot_point_wise_error(save = True, points = points, rel_error = True, err_vmax = 1.5e-8):
     """
     Plots all 3 planes of point-wise errors between vlasiator and RBF 
@@ -464,7 +478,6 @@ def plot_hist_component_comparison(plane_RBF, plane_Vlas, plane, type = "filled"
         fig.suptitle(f"Histograms of component counts at Pos={pos_idx}, plane = {plane}")
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_comparision_comp_counts_{plane}_pos_{pos_idx}_no_den_type={type}.png")
     return
-
 
 def plot_any_plane(norm_vec):
     """
@@ -600,7 +613,6 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_abs_error.png")                
     return
 
-
 def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
     """
     For a collections of xy, xz, yz planes from vlasiator and the RBF reconstruction
@@ -658,8 +670,7 @@ def full_Wasser_hist(vlas_planes, rbf_planes, type = "filled", save = True):
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/histogram_3x3_L={Lsize}_time=1432s_pos={pos_idx}_CORRECT.png")
     return
 
-
-def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx, buffer = 0, error_cutoff = 20, info = True):
+def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx = pos_idx, buffer = 0, error_cutoff = 20, info = True, compute_3D= False):
     """
     This function creates a three histogram plots of the values of the components in 
     RBF reconstruction and Vlasiator data inside a convex hull made of the virtual 
@@ -710,7 +721,61 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     
     B_RBF = [Bx_RBF.ravel(), By_RBF.ravel(),Bz_RBF.ravel()]
     B_vlas =[Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()]
+
+    #Computing 3D wasserstein distance between the two 3D distributions 
+    W_rel_3D = None 
+    if compute_3D: 
+        B_vec_RBF  = np.column_stack([Bx_RBF.ravel(), By_RBF.ravel(), Bz_RBF.ravel()])
+        B_vec_Vlas = np.column_stack([Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()])
+        seed = 0
+        samples = 1000
+        """
+        rng = np.random.default_rng(seed)
+        idx_was = rng.choice(len(B_vec_Vlas), size = samples, replace=False)
+        """
+        
+        B_smaller_R = B_vec_RBF
+        B_smaller_V = B_vec_Vlas
+        print(B_smaller_V.shape)
+        def rowmask_valid(B):
+            return np.all(np.isfinite(B), axis=1) & (np.linalg.norm(B, axis=1) > 0)
+
+        mask_r = rowmask_valid(B_smaller_R)
+        mask_v = rowmask_valid(B_smaller_V)
+
+        mask = mask_r & mask_v
+
+        B_smaller_R = B_smaller_R[mask]
+        B_smaller_V = B_smaller_V[mask]
+
+        def sample_points(field, points_num = 1000, seed = 0):
+            rng = np.random.default_rng(seed=seed)
+            idx = rng.choice(len(field), size = points_num, replace = False)
+            return field[idx]
+        B_r_sampled = sample_points(B_smaller_R)
+        B_v_sampled = sample_points(B_smaller_V)
+
+        """
+        med_3D = np.median(B_smaller_V, axis=0)
+        print(med_3D.shape)      
     
+        W3 = wasserstein_distance_nd(B_smaller_R, B_smaller_V)
+        print(B_smaller_V.shape)
+        
+        W3_den = wasserstein_distance_nd(B_smaller_V, np.tile(med_3D, (B_smaller_V.shape[0],1)))
+        
+        W_rel_3D = np.round(W3/W3_den if W3_den>0 else np.nan, 4)
+        """
+        med_3D = np.median(B_v_sampled, axis=0)
+        print(med_3D.shape)      
+    
+        W3 = wasserstein_distance_nd(B_r_sampled, B_v_sampled)
+        print(B_v_sampled.shape)
+        
+        W3_den = wasserstein_distance_nd(B_v_sampled, np.tile(med_3D, (B_v_sampled.shape[0],1)))
+        
+        W_rel_3D = np.round(W3/W3_den if W3_den>0 else np.nan, 4)
+        print(W_rel_3D)
     #Point-wise error inside the Convex Hull  
     #USED also to check validity of extrapolation_limit() SDF
     dBx = B_RBF[0] - B_vlas[0]
@@ -781,10 +846,12 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     if save:
         plt.savefig(path)
     plt.close()
-    return tuple(W_rels)
+    
 
+    return tuple(W_rels), W_rel_3D
 
 def extrapolation_limit(sc_points,Dis_min = 0, Dis_max = 0.5, inner = False, error_cutoff = 50):
+
     import trimesh
     from scipy.spatial import ConvexHull, Delaunay
     """
@@ -907,6 +974,7 @@ def extrapolation_limit(sc_points,Dis_min = 0, Dis_max = 0.5, inner = False, err
         print(f"Fraction of points with error <{error_cutoff}%: {fraction:.3f} between {D_min/1000:.1f} km to {D_max/1000:.1f} km from constellation")
     
     return fraction, W_rels
+
 def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = True, save = True, threshold = 0.5, pos = pos_idx):
     
     """
@@ -986,6 +1054,8 @@ def W_rel_stats(save = True, anim = False):
     """
     This function loops through all the position indices and creates three histogram plots 
     containing all the 1D Wasserstein  
+
+    anim : Saves the histogram plots for each position 
     """
     wx = []
     wy = []
@@ -999,7 +1069,7 @@ def W_rel_stats(save = True, anim = False):
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
         points  = row[pos_cols].to_numpy().reshape(7, 3) 
     
-        w_rel_x, w_rel_y, w_rel_z = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos)
+        w_rel_x, w_rel_y, w_rel_z, W_rel_3D = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos)
         #Not relavant for code to work
         #Just wanted to see where outliers were
         """
@@ -1066,7 +1136,6 @@ def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
     curved = [blk.tube(radius=radius) for blk in as_blocks(mesh)
               if max_angle(blk.points) >= thresh_rad]
     return pv.MultiBlock(curved)                
-
 
 def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True, extended_x = False):
     """
@@ -1175,16 +1244,6 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
     
     return
 
-#Animation functions
-def full_comp_anim():
-    """
-    Function to loop:full_vlas_RBF_error()
-    Logic: Loop through all position indecies and save a plot into folder
-    Later create animation of photos in said folder using ffmpeg command
-    Needed: extract planes at each position
-    """
-    return
-
 ######
 #Main#
 ######
@@ -1193,9 +1252,9 @@ def full_comp_anim():
 
 #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(all_points, pos_idx="All Points", save = False, error_cutoff=100.0)
+Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
 #W_rel_stats(anim = False)
 #fieldlines_3D(save=False,pos=45,ood = True)
-plot_point_wise_error(rel_error=False)
+#plot_point_wise_error(rel_error=False)

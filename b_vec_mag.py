@@ -15,8 +15,9 @@ R_e = 6371000
 #Get different points from SC_constellations.txt
 
 """
-Add the rotation matrix script here to automate making the points
-Then scale factor multiplier to constellation size.
+SC_constellations made somewhat arbitrary by importing rotation matrix
+It has been kept since there are some easy references to starting constellations 
+of some trajectories
 """
 """
 #tail right z=0.5
@@ -37,6 +38,16 @@ points = get_sc_locations(rotation=0,translation=[-27,3,0.5], in_scl=5,scale_con
 #Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
     
+    """
+    Generates points for a virtual spacecraft constellation 
+    with given starting and ending position of "mothercraft" or first in given constellation positions 
+
+    :kword N: Number of steps in the trajectory
+    :kword points: points of initial spacecraft constellation
+    :kword start_point: Starting points of refrence point/mothercraft
+    :kword end_point: Ending point of refrence point/mothercraft
+    """
+
     R_e = 6371000 
     # Define the start and end positions for spacecraf 1
     sc1_start = start_point * R_e
