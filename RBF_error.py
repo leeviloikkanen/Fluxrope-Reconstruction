@@ -42,7 +42,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 66        
+pos_idx = 20       
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -678,6 +678,9 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     below a relative error cutoff.
 
     Return: (Wasser_x, Wasser_y, Wasser_z) 
+
+    TODO: implement optimal transport using weights: https://pythonot.github.io/auto_examples/plot_quickstart_guide.html#d-data-example
+    could offset each magnetic field by smallest value so that all field points are positive.
     """
     if path == None:
         path = f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/histogram_comparison_comp_counts_type={type}_3D_pos_{pos_idx}.png"
@@ -724,6 +727,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
 
     #Computing 3D wasserstein distance between the two 3D distributions 
     W_rel_3D = None 
+
     if compute_3D: 
         B_vec_RBF  = np.column_stack([Bx_RBF.ravel(), By_RBF.ravel(), Bz_RBF.ravel()])
         B_vec_Vlas = np.column_stack([Bx_vlas.ravel(),By_vlas.ravel(),Bz_vlas.ravel()])
@@ -736,7 +740,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
         
         B_smaller_R = B_vec_RBF
         B_smaller_V = B_vec_Vlas
-        print(B_smaller_V.shape)
+        
         def rowmask_valid(B):
             return np.all(np.isfinite(B), axis=1) & (np.linalg.norm(B, axis=1) > 0)
 
@@ -766,16 +770,17 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
         
         W_rel_3D = np.round(W3/W3_den if W3_den>0 else np.nan, 4)
         """
-        med_3D = np.median(B_v_sampled, axis=0)
-        print(med_3D.shape)      
+        #this is the component wise median
+        med_3D = np.median(B_v_sampled, axis=0) 
     
         W3 = wasserstein_distance_nd(B_r_sampled, B_v_sampled)
-        print(B_v_sampled.shape)
         
         W3_den = wasserstein_distance_nd(B_v_sampled, np.tile(med_3D, (B_v_sampled.shape[0],1)))
         
         W_rel_3D = np.round(W3/W3_den if W3_den>0 else np.nan, 4)
         print(W_rel_3D)
+
+    
     #Point-wise error inside the Convex Hull  
     #USED also to check validity of extrapolation_limit() SDF
     dBx = B_RBF[0] - B_vlas[0]
@@ -849,6 +854,126 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
     
 
     return tuple(W_rels), W_rel_3D
+
+def Wasser_by_pos_abs(sc_points, pos_idx = pos_idx,info = True, buffer = 0):
+    """
+    This function is a extention of the previous Wasserstein metric calculations. 
+    The purpose of this is to take into account the spatial locations of data points
+    The function uses python optimal transport library for computation for which 
+    documentation can be found at: https://pythonot.github.io/index.html
+
+    """
+    import ot
+    from scipy.spatial import ConvexHull, Delaunay
+    nx, ny, nz = 60, 60, 60
+    lil = buffer * R_e
+
+    x = np.linspace(sc_points[:, 0].min() - lil, sc_points[:, 0].max() + lil, nx)
+    y = np.linspace(sc_points[:, 1].min() - lil, sc_points[:, 1].max() + lil, ny)
+    z = np.linspace(sc_points[:, 2].min() - lil, sc_points[:, 2].max() + lil, nz)
+
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    pts = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+    
+    hull = ConvexHull(sc_points)
+    trig = Delaunay(sc_points[hull.vertices])
+
+    inside = trig.find_simplex(pts) >= 0
+    pts_inside = pts[inside]
+
+    # Vlasiator
+    Bxyz_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", pts_inside)
+    # RBF 
+    Bxyz_RBF = rbf(pts_inside / 1000.0) 
+    
+    #B field magnitudes
+    w_vlas = np.linalg.norm(Bxyz_vlas, axis=1)
+    w_rbf  = np.linalg.norm(Bxyz_RBF,  axis=1)
+
+    #Taking out NaN values 
+    mask = np.isfinite(w_vlas) & np.isfinite(w_rbf) & (w_vlas > 0) & (w_rbf > 0)
+
+    pts_inside = pts_inside[mask]
+
+    Bxyz_vlas = Bxyz_vlas[mask]
+    Bxyz_RBF  = Bxyz_RBF[mask]
+
+    w_vlas = w_vlas[mask]
+    w_rbf = w_rbf[mask]
+
+    #sampling points for resonable matrix size
+    max_pts = 3000  
+    if len(pts_inside) > max_pts:
+        rng = np.random.default_rng(seed=pos_idx)
+        idx = rng.choice(len(pts_inside), max_pts, replace=False)
+        pts_inside = pts_inside[idx]
+        w_vlas = w_vlas[idx]
+        w_rbf = w_rbf[idx]
+
+        #Reducing the original field as well for the component wise analysis later
+        Bxyz_vlas = Bxyz_vlas[idx]
+        Bxyz_RBF  = Bxyz_RBF[idx]
+
+
+        w_vlas /= w_vlas.sum()
+        w_rbf /= w_rbf.sum()
+
+    #this is transport cost matrix
+    #basically a matrix of the euclidean distance between all points
+    M = ot.dist(pts_inside, pts_inside, metric="euclidean")
+    M /= M.mean() 
+    
+    epsi = 0.05   #regularization strength
+
+    #use of sinkhorn since its better computationally for large N 
+    #not exact Wasserstein distance but numerically stable 
+    W_mag = ot.sinkhorn2(w_vlas, w_rbf, M, reg=epsi)
+
+    #normalizing with median
+    median_w = np.median(w_vlas)
+
+    w_med = np.full_like(w_vlas, median_w)
+    w_med  /= w_med.sum()
+    W_den = ot.sinkhorn2(w_vlas, w_med, M, reg=epsi)
+
+    W_rel = W_mag / W_den
+
+    W_rel_comps = []
+
+    for i in range(3):
+
+        B_comp_v =  Bxyz_vlas[:,i]
+        B_comp_r =  Bxyz_RBF[:,i]
+
+        #offsetting the value by the minimum of the two fields so all value positive for wasserstein weights
+        #keeps structure of the field
+        min_B = min(B_comp_v.min(), B_comp_r.min())
+    
+        non_zero = 1e-15
+        #wants non zero values and shift obviously forces minimum value to 0 so added term to make it "non zero"
+        B_comp_v_shifted = B_comp_v - min_B + non_zero
+        B_comp_r_shifted = B_comp_r - min_B + non_zero
+
+        B_comp_v_shifted /= B_comp_v_shifted.sum()
+        B_comp_r_shifted /= B_comp_r_shifted.sum()
+
+        #The transport cost matrix should be the same M 
+        W_rel_comp = ot.sinkhorn2(B_comp_v_shifted,B_comp_r_shifted, M, reg=epsi)
+        
+        med_comp = np.median(B_comp_v_shifted)
+        w_med_comp = np.full_like(B_comp_v_shifted, med_comp)
+        w_med_comp /= w_med_comp.sum()
+        W_den_comp = ot.sinkhorn2(B_comp_v_shifted, w_med_comp, M, reg=epsi)
+        
+        W_rel_comps.append(W_rel_comp/W_den_comp)
+
+
+    if info:
+        print(f"Wasserstein distance at positin index: {pos_idx} for absolute magnetic field")
+        print(W_rel)
+        print(f"Component wise wasserstein distance:")
+        print(f"B_x = {W_rel_comps[0]}, B_y = {W_rel_comps[1]}, B_z = {W_rel_comps[2]}")
+    return W_rel, W_rel_comps
 
 def extrapolation_limit(sc_points,Dis_min = 0, Dis_max = 0.5, inner = False, error_cutoff = 50):
 
@@ -1050,7 +1175,7 @@ def limit_plot(error_cut= 50, min_dist= 0.01, max_dist=1, steps = 15, shells = T
             plt.suptitle(f"Cumulative error, Position: {pos}")
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/Accuracy_and_Wasserstein_vs_Distance_Pos={pos}_{error_cut}%_Cumulative.png")
 
-def W_rel_stats(save = True, anim = False):
+def W_rel_stats(save = True, anim = False, is_3D = False, csv_path = None):
     """
     This function loops through all the position indices and creates three histogram plots 
     containing all the 1D Wasserstein  
@@ -1060,6 +1185,7 @@ def W_rel_stats(save = True, anim = False):
     wx = []
     wy = []
     wz = []
+    w3D = []
     for pos in range(T):
         #location of spacecrafts at desired index
         if anim:
@@ -1069,7 +1195,8 @@ def W_rel_stats(save = True, anim = False):
         row     = df.loc[df["Position_Index"] == pos].iloc[0]
         points  = row[pos_cols].to_numpy().reshape(7, 3) 
     
-        w_rel_x, w_rel_y, w_rel_z, W_rel_3D = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos)
+        W_cords, W_rel_3D = Wasser_3D_hist(points, save=anim, path=anim_path, pos_idx=pos, compute_3D = is_3D)
+        w_rel_x, w_rel_y, w_rel_z = W_cords
         #Not relavant for code to work
         #Just wanted to see where outliers were
         """
@@ -1085,31 +1212,141 @@ def W_rel_stats(save = True, anim = False):
         wx.append(w_rel_x)
         wy.append(w_rel_y)
         wz.append(w_rel_z)
-    fig, axes = plt.subplots(1, 3, figsize=(12,3.5), constrained_layout=True)
-    series  = (wx, wy, wz)
-    labels  = ("$W_{\\mathrm{rel},x}$", "$W_{\\mathrm{rel},y}$", "$W_{\\mathrm{rel},z}$")
+        w3D.append(W_rel_3D)
+    if csv_path is not None:
+     
+        data = {
+            "Position_Index": list(range(T)),
+            "W_rel_x": wx,
+            "W_rel_y": wy,
+            "W_rel_z": wz,
+            "W_rel_3D": w3D if is_3D else [np.nan] * T,
+        }
+        pd.DataFrame(data).to_csv(csv_path, index=False)
 
-    for ax, w, lab in zip(axes, series, labels):
-        w = np.asarray(w)
-        p90 = np.percentile(w, 90)          
-        p50 = np.percentile(w,50)
+    if save:
+        if is_3D:
+            w3D = np.asarray(w3D)
+            p90 = np.percentile(w3D, 90)          
+            p50 = np.percentile(w3D,50)
 
+           
+            bin_edges = np.linspace(0, 1.6, 51)
+            fig, ax = plt.subplots()
+            ax.axvline(p50, color="blue", ls="--",lw =1.8,
+                    label=f"Median: {np.round(p50,2)}")
+            ax.axvline(p90, color="crimson", ls="--", lw=1.8,
+                label=f"90%: {np.round(p90,2)}")
+            ax.hist(w3D, bins = bin_edges, color = "steelblue", alpha = 0.7)
+            ax.set_title("3D wasserstein distance distribution of convex hull")
+            ax.set_ylabel("Count")
+            ax.set_xlabel("$W_{\\mathrm{rel},3D}$")
+            ax.grid(alpha = 0.3)
+            ax.legend(loc= "upper right")
+            plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/W_rel_stats_bins=50_3D_W_rels.png")
+        else:
+
+            fig, axes = plt.subplots(1, 3, figsize=(12,3.5), constrained_layout=True)
+            series  = (wx, wy, wz)
+            labels  = ("$W_{\\mathrm{rel},x}$", "$W_{\\mathrm{rel},y}$", "$W_{\\mathrm{rel},z}$")
+
+            for ax, w, lab in zip(axes, series, labels):
+                w = np.asarray(w)
+                p90 = np.percentile(w, 90)          
+                p50 = np.percentile(w,50)
+
+                ax.axvline(p50, color="blue", ls="--",lw =1.8,
+                        label=f"Median: {np.round(p50,2)}")
+                ax.axvline(p90, color="crimson", ls="--", lw=1.8,
+                    label=f"90%: {np.round(p90,2)}")
+                bin_edges = np.linspace(0, 1.6, 51)
+                ax.hist(w, bins=bin_edges, color="steelblue", alpha=0.7)
+                ax.set_xlim([0,1.6])
+                ax.set_xlabel(lab)
+                ax.set_ylabel("Count")
+                ax.grid(alpha=0.3)
+                ax.legend(loc= "upper right")
+            fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
+                        fontsize=14)    
+    
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/fly_up/W_rel_stats_3D_bins=50__in_scl=0.2_scale={scale}_2.png")
+    return
+
+def W_rel_abs_stats(save = True, anim = False, csv_path = None):
+    w_xs, w_ys, w_zs = [], [], []
+    W_vals = []
+
+    for pos in range(T):
+        row = df.loc[df["Position_Index"] == pos].iloc[0]
+        sc_points = row[pos_cols].to_numpy().reshape(-1, 3)
+
+        # compute spatial Wasserstein distance
+        W_rel, W_comps = Wasser_by_pos_abs(sc_points, pos_idx = pos)
+        w_xs.append(W_comps[0])
+        w_ys.append(W_comps[1])
+        w_zs.append(W_comps[2])
+        W_vals.append(W_rel)
+    
+    W_vals, w_xs, w_ys, w_zs= np.asarray(W_vals), np.asarray(w_xs), np.asarray(w_ys), np.asarray(w_zs)
+
+
+    if csv_path is not None:
+        data = {
+            "Position index": list(range(T)),
+            "W_rel_x": w_xs,
+            "W_rel_y": w_ys,
+            "W_rel_z": w_zs,
+            "W_rel_abs": W_vals,
+                
+        }
+        pd.DataFrame(data).to_csv(csv_path, index=False)
+
+    if save:
+        p90 = np.percentile(W_vals, 90)          
+        p50 = np.percentile(W_vals,50)
+
+        
+        bin_edges = np.linspace(0, 1.6, 51)
+        fig, ax = plt.subplots()
         ax.axvline(p50, color="blue", ls="--",lw =1.8,
                 label=f"Median: {np.round(p50,2)}")
         ax.axvline(p90, color="crimson", ls="--", lw=1.8,
-               label=f"90%: {np.round(p90,2)}")
-        bin_edges = np.linspace(0, 1.6, 51)
-        ax.hist(w, bins=bin_edges, color="steelblue", alpha=0.7)
-        ax.set_xlim([0,1.6])
-        ax.set_xlabel(lab)
+            label=f"90%: {np.round(p90,2)}")
+        ax.hist(W_vals, bins = bin_edges, color = "steelblue", alpha = 0.7)
+        ax.set_title("3D wasserstein distance distribution of convex hull")
         ax.set_ylabel("Count")
-        ax.grid(alpha=0.3)
+        ax.set_xlabel("$W_{\\mathrm{rel},3D}$")
+        ax.grid(alpha = 0.3)
         ax.legend(loc= "upper right")
-    fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
-                fontsize=14)    
-    if save: 
+        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/W_rel_stats_bins=50_3D_W_rels_abs.png")
+        plt.close()
+
+        fig, axes = plt.subplots(1, 3, figsize=(12,3.5), constrained_layout=True)
+        series  = (w_xs, w_ys, w_zs)
+        labels  = ("$W_{\\mathrm{rel},x}$", "$W_{\\mathrm{rel},y}$", "$W_{\\mathrm{rel},z}$")
+
+        for ax, w, lab in zip(axes, series, labels):
+            w = np.asarray(w)
+            p90 = np.percentile(w, 90)          
+            p50 = np.percentile(w,50)
+
+            ax.axvline(p50, color="blue", ls="--",lw =1.8,
+                    label=f"Median: {np.round(p50,2)}")
+            ax.axvline(p90, color="crimson", ls="--", lw=1.8,
+                label=f"90%: {np.round(p90,2)}")
+            bin_edges = np.linspace(0, 1.6, 51)
+            ax.hist(w, bins=bin_edges, color="steelblue", alpha=0.7)
+            ax.set_xlim([0,1.6])
+            ax.set_xlabel(lab)
+            ax.set_ylabel("Count")
+            ax.grid(alpha=0.3)
+            ax.legend(loc= "upper right")
+        fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
+                    fontsize=14)    
+
         plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/fly_up/W_rel_stats_3D_bins=50__in_scl=0.2_scale={scale}_2.png")
-    return
+
+
 
 def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
     
@@ -1252,9 +1489,11 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
 
 #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
 #full_Wasser_hist(vlas_planes,RBF_planes)
-Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
+#Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
-#W_rel_stats(anim = False)
+#W_rel_stats(anim = False, is_3D=True, csv_path = "/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_vals.csv")
 #fieldlines_3D(save=False,pos=45,ood = True)
 #plot_point_wise_error(rel_error=False)
+#W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
+Wasser_by_pos_abs(points, info = True)
