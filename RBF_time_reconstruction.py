@@ -36,7 +36,7 @@ vg_v_x = -739256.9
 vg_v_y = -268152.8
 vg_v_z =  147101.5
 
-output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
+output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/anim/"
 
 vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
 
@@ -582,6 +582,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         
         output_file = output_dir+output_file           
         plt.savefig(output_file)    
+        plt.close()
     return
 
 def Wasserstein_Hull(time, type = "filled", save = True, buffer = 0, error_cutoff = 20, info = True, output_dir =None, output_file =None):
@@ -750,5 +751,7 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
 #for i in df["Timeframe"]:
 #   plot_vlas_slices(time = i, output_dir=output_dir)
-plot_vlas_RBF_error(time = 1360, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_error_max_err=120.png")
+#plot_vlas_RBF_error(time = 1360, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_error_max_err=120.png")
 #plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_thight.png", save = False)
+for i in df["Timeframe"]:
+    plot_vlas_RBF_error(time = i, output_dir=output_dir)

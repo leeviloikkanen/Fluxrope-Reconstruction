@@ -23,8 +23,9 @@ import scipy
 #Scale only relavant when using multiple scale runs
 #generally not relavant
 scale = 1.7
-df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
-
+#df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
+#df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly")
+df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv")
 #TODO: modify functions to have directly some folder_dir+identifier to automatically change file names and locations at start 
 output_dir = ""
 
@@ -156,7 +157,8 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
 
 #outer tetra = ["sc2","sc3","sc4"]
 #inner tetra = ["sc5","sc6","sc7"]
-missing_sc =None
+#none = None
+missing_sc = ["sc5","sc6","sc7"]
 rbf, included_pos_cols, included_B_cols = RBF_missing_data(missing_sc)
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
@@ -855,7 +857,7 @@ def Wasser_3D_hist(sc_points, type = "filled", save = True, path=None, pos_idx =
 
     return tuple(W_rels), W_rel_3D
 
-def Wasser_by_pos_abs(sc_points, pos_idx = pos_idx,info = True, buffer = 0):
+def Wasser_by_pos_abs(sc_points, pos_idx = pos_idx,info = True, buffer = 0, true_Was = True, epsi = 0.005):
     """
     This function is a extention of the previous Wasserstein metric calculations. 
     The purpose of this is to take into account the spatial locations of data points
@@ -923,18 +925,27 @@ def Wasser_by_pos_abs(sc_points, pos_idx = pos_idx,info = True, buffer = 0):
     M = ot.dist(pts_inside, pts_inside, metric="euclidean")
     M /= M.mean() 
     
-    epsi = 0.05   #regularization strength
+    epsi = epsi   #regularization strength
 
-    #use of sinkhorn since its better computationally for large N 
-    #not exact Wasserstein distance but numerically stable 
-    W_mag = ot.sinkhorn2(w_vlas, w_rbf, M, reg=epsi)
+    if true_Was:
+        median_w = np.median(w_vlas)
 
-    #normalizing with median
-    median_w = np.median(w_vlas)
+        w_med = np.full_like(w_vlas, median_w)
+        w_med /= w_med.sum()
+        W_mag = ot.emd2(w_vlas, w_rbf, M)
+        W_den = ot.emd2(w_vlas, w_med, M)
+    else:
+        #use of sinkhorn since its better computationally for large N 
+        #not exact Wasserstein distance but numerically stable 
+        W_mag = ot.sinkhorn2(w_vlas, w_rbf, M, reg=epsi)
 
-    w_med = np.full_like(w_vlas, median_w)
-    w_med  /= w_med.sum()
-    W_den = ot.sinkhorn2(w_vlas, w_med, M, reg=epsi)
+        #normalizing with median
+        median_w = np.median(w_vlas)
+
+        w_med = np.full_like(w_vlas, median_w)
+        w_med /= w_med.sum()
+        W_den = ot.sinkhorn2(w_vlas, w_med, M, reg=epsi)
+
 
     W_rel = W_mag / W_den
 
@@ -956,14 +967,22 @@ def Wasser_by_pos_abs(sc_points, pos_idx = pos_idx,info = True, buffer = 0):
 
         B_comp_v_shifted /= B_comp_v_shifted.sum()
         B_comp_r_shifted /= B_comp_r_shifted.sum()
-
-        #The transport cost matrix should be the same M 
-        W_rel_comp = ot.sinkhorn2(B_comp_v_shifted,B_comp_r_shifted, M, reg=epsi)
-        
-        med_comp = np.median(B_comp_v_shifted)
-        w_med_comp = np.full_like(B_comp_v_shifted, med_comp)
-        w_med_comp /= w_med_comp.sum()
-        W_den_comp = ot.sinkhorn2(B_comp_v_shifted, w_med_comp, M, reg=epsi)
+        if true_Was:
+             #The transport cost matrix should be the same M 
+            W_rel_comp = ot.emd2(B_comp_v_shifted,B_comp_r_shifted, M)
+            
+            med_comp = np.median(B_comp_v_shifted)
+            w_med_comp = np.full_like(B_comp_v_shifted, med_comp)
+            w_med_comp /= w_med_comp.sum()
+            W_den_comp = ot.emd2(B_comp_v_shifted, w_med_comp, M)    
+        else: 
+            #The transport cost matrix should be the same M 
+            W_rel_comp = ot.sinkhorn2(B_comp_v_shifted,B_comp_r_shifted, M, reg=epsi)
+            
+            med_comp = np.median(B_comp_v_shifted)
+            w_med_comp = np.full_like(B_comp_v_shifted, med_comp)
+            w_med_comp /= w_med_comp.sum()
+            W_den_comp = ot.sinkhorn2(B_comp_v_shifted, w_med_comp, M, reg=epsi)
         
         W_rel_comps.append(W_rel_comp/W_den_comp)
 
@@ -1318,7 +1337,7 @@ def W_rel_abs_stats(save = True, anim = False, csv_path = None):
         ax.set_xlabel("$W_{\\mathrm{rel},3D}$")
         ax.grid(alpha = 0.3)
         ax.legend(loc= "upper right")
-        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/W_rel_stats_bins=50_3D_W_rels_abs.png")
+        plt.savefig("/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/W_rel_stats_bins=50_3D_W_rels_abs_TRUE_missing_outer.png")
         plt.close()
 
         fig, axes = plt.subplots(1, 3, figsize=(12,3.5), constrained_layout=True)
@@ -1344,11 +1363,11 @@ def W_rel_abs_stats(save = True, anim = False, csv_path = None):
         fig.suptitle("Convex Hull Distribution of $W_{rel}$ errors",
                     fontsize=14)    
 
-        plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/fly_up/W_rel_stats_3D_bins=50__in_scl=0.2_scale={scale}_2.png")
+        plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/W_rel_stats_3D_bins=50_comps_by_pos_TRUE_missing_outer.png")
 
 
 
-def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
+def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 30):
     
     def max_angle(pts):
         #need 3 points to calculate curvature
@@ -1374,7 +1393,7 @@ def keep_only_curved(mesh, thresh_rad=np.deg2rad(5), radius = 60):
               if max_angle(blk.points) >= thresh_rad]
     return pv.MultiBlock(curved)                
 
-def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = True, RBF_lines = True, extended_x = False):
+def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.2, vlas_lines = True, RBF_lines = True, extended_x = False):
     """
     interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
     to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
@@ -1385,10 +1404,13 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
 
     pos_idx = pos  
     sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3)/1000.0  
+    sc_included = df.iloc[pos_idx][included_pos_cols].to_numpy().reshape(int(len(included_pos_cols)/3), 3) 
 
     padding = pad
     if extended_x:
         extend_x = 1.5*R_e_km
+    else:
+        extend_x = 0
     #For the integration set resolution to be more directly correlated to step size
     bounds_km = np.array([
         sc_now[:, 0].min() - extend_x - padding * R_e_km,
@@ -1464,7 +1486,7 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
     if RBF_lines:
         pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
     """
-    pl.add_points(sc_now, color="black", point_size=10)
+    pl.add_points(sc_included, color="black", point_size=10)
     pl.add_axes()
     pl.add_legend()
     pl.show_grid(
@@ -1474,10 +1496,33 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
         fmt="%.0f",              
         font_size=15
     )
+    """
     if save:
-        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_through_tail/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
+        pl.save_graphic(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}.svg")
+    """    
+    pl.enable_parallel_projection()
+    
     if ood:
-        pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}")
+        #pl.camera_position([(68320, -85100, 4551), (46846, -58725, -4775), (-0.20450745756748825, 0.17412489093695926, 1)])
+        pl.show(title=f"RBF vs Vlasiator Streamlines at Position_Index={pos_idx}", auto_close = False)
+        cam_pos, cam_focal, _ = pl.camera_position
+        
+        #forces z-axis as up axis to straighten camera
+        #Can be changed freely based on wanted view
+        pl.camera_position = [cam_pos, cam_focal ,(0, 0, 1),]
+        print(pl.camera_position)
+        pl.render()
+       
+        """
+        [(78362.16462385448, -43552.035535978284, -267.0920346648621),
+        (46846.24240142641, -58725.125, -4775.93310546875),
+        (-0.004254564116188256, -0.276716794740462, 0.9609420972112453)]
+        """
+    if out_path == None: 
+        out_path = f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}_3.png"
+
+    if save: 
+        pl.screenshot(out_path)
     
     return
 
@@ -1493,7 +1538,8 @@ def fieldlines_3D(pos = 40, ood = False, save = False, pad = 0.2, vlas_lines = T
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
 #W_rel_stats(anim = False, is_3D=True, csv_path = "/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_vals.csv")
-#fieldlines_3D(save=False,pos=45,ood = True)
+fieldlines_3D(save = True, pos=40, ood= True)
 #plot_point_wise_error(rel_error=False)
 #W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
-Wasser_by_pos_abs(points, info = True)
+#Wasser_by_pos_abs(points, info = True, true_Was=True)
+#W_rel_abs_stats(save = False, anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals_TRUE_missing_inner.csv")
