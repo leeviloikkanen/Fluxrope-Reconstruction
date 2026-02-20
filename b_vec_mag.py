@@ -7,7 +7,7 @@
 import analysator as pt
 import numpy as np
 import csv
-from rotation_matrix_leevi import get_sc_locations
+from rotation_matrix import get_sc_locations
 #Virtual spacecraft (SC) locations 
 #Multiply by R_e is coordinates in R_e 
 R_e = 6371000
@@ -153,6 +153,7 @@ def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, sc
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
 #Timeseries(start_time=1340,end_time=1372)
 #High res fly through:[6,-6.5,-2.6],[10.327,-6.5,-2.6]
+
 scales = np.linspace(0.5,1.9,8)
 print(scales)
 
