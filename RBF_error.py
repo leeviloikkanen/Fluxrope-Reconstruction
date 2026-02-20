@@ -158,7 +158,7 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
 #outer tetra = ["sc2","sc3","sc4"]
 #inner tetra = ["sc5","sc6","sc7"]
 #none = None
-missing_sc = ["sc5","sc6","sc7"]
+missing_sc = ["sc2","sc3","sc4","sc5","sc6","sc7"]
 rbf, included_pos_cols, included_B_cols = RBF_missing_data(missing_sc)
 
 row = df.loc[df["Position_Index"] == pos_idx].iloc[0]
@@ -1404,8 +1404,8 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
 
     pos_idx = pos  
     sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3)/1000.0  
-    sc_included = df.iloc[pos_idx][included_pos_cols].to_numpy().reshape(int(len(included_pos_cols)/3), 3) 
-
+    sc_included = df.iloc[pos_idx][included_pos_cols].to_numpy().reshape(int(len(included_pos_cols)/3), 3)/1000.0
+    
     padding = pad
     if extended_x:
         extend_x = 1.5*R_e_km
@@ -1472,6 +1472,7 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
         integration_direction="both"
     )
     
+    #What degree difference there need to be between start and end point to be considered curved
     curv_thresh = np.deg2rad(2)     
     streamlines_vlas = keep_only_curved(streamlines_vlas, curv_thresh)
     streamlines_RBF  = keep_only_curved(streamlines_RBF,  curv_thresh)
@@ -1486,6 +1487,35 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
     if RBF_lines:
         pl.add_mesh(streamlines_RBF.tube(radius=60), color="red", label = "RBF")
     """
+   
+    def traj_line(SC_num, line_style = "dashed"):
+        cols = included_pos_cols[3*SC_num:3*SC_num+3]
+
+        traj = df[cols].to_numpy() / 1000.0 
+        traj_old = np.linspace(0,1, traj.shape[0])
+        traj_new = np.linspace(0,1,240)
+        traj = np.vstack(([np.interp(traj_new,traj_old,traj[:,i]) for i in range(3)])).T
+        x_min, x_max, y_min, y_max, z_min, z_max = bounds_km
+        mask = ((traj[:,0]>= x_min) & (traj[:,0]<=x_max) & (traj[:,1]>= y_min) & (traj[:,1]<=y_max) & (traj[:,2]>= z_min) & (traj[:,2]<=z_max))
+        traj_in = traj[mask]
+
+        n = len(traj_in)
+        dashes = []
+
+        i = 0
+        while i < n-1:
+            j = i+2
+            dashes.append(pv.lines_from_points(traj_in[i:j]))
+            i += 3
+            
+        #trajectory = pv.lines_from_points(traj_in)
+        for dash in dashes:
+            pl.add_mesh(dash, color = "black", line_width=2)
+
+    for i in range(int(len(included_pos_cols)/3)):
+        traj_line(i)
+  
+    
     pl.add_points(sc_included, color="black", point_size=10)
     pl.add_axes()
     pl.add_legend()
@@ -1519,7 +1549,7 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
         (-0.004254564116188256, -0.276716794740462, 0.9609420972112453)]
         """
     if out_path == None: 
-        out_path = f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}_3.png"
+        out_path = f"/home/leeviloi/fluxrope_thesis/fly_through_z=-1_inner=0.14/RBF_Vlas_3D_fieldlines_pos={pos_idx}_GOOD_SC1_2.png"
 
     if save: 
         pl.screenshot(out_path)
@@ -1538,7 +1568,7 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
 #extrapolation_limit(points, error_cutoff=50, inner = True)
 #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
 #W_rel_stats(anim = False, is_3D=True, csv_path = "/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_vals.csv")
-fieldlines_3D(save = True, pos=40, ood= True)
+#fieldlines_3D(save = True, pos=40, ood= True)
 #plot_point_wise_error(rel_error=False)
 #W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
 #Wasser_by_pos_abs(points, info = True, true_Was=True)

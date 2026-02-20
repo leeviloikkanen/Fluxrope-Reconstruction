@@ -31,19 +31,19 @@ vg_v_y = -181801.77131761858
 vg_v_z = 121311.91965101559
 """
 
-#SC1-4 overall mean:
-vg_v_x = -739256.9
-vg_v_y = -268152.8
-vg_v_z =  147101.5
-
-output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/anim/"
-
-vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
-
 #Shared info
-df = pd.read_csv("/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv")
+#TODO plan is to calculate the mean vg_v from 
+vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
+b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
+df_v = pd.read_csv(vg_v_file)
+df = pd.read_csv(b_field_file)
 
+
+#Earth radius in meters 
 R_e = 6371000   
+
+#Output file directory
+output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
 #STARTING SC locations 
 sc_init = {
@@ -54,25 +54,70 @@ sc_init = {
     "sc5": np.array([-26.85714286, 3.0, 0.64285714]) * R_e,
     "sc6": np.array([-26.85714286, 3.12371791, 0.42857143]) * R_e,
     "sc7": np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e,
-}
-
+    }
 times = df["Timeframe"].to_numpy() 
 T = len(times)
 sc_names  = [f"sc{i}" for i in range(1, 8)]
 
-df["dt"] = df["Timeframe"] - df["Timeframe"].iloc[0]
+def static_bulk_velocity():
+    #SC1-4 overall mean:
+    #SC1-4 is the outer tetrahedron and likely good approximation of bulk velocity
+    #as is not over weighted by the inner
+    vg_v_x = -739256.9
+    vg_v_y = -268152.8
+    vg_v_z =  147101.5
 
-#Make artificial spacecraft location for RBF reconstructions
-for sc, init_pos in sc_init.items():
-    df[f"{sc}_pos_x"] = init_pos[0] + vel_bulk[0] * df["dt"]
-    df[f"{sc}_pos_y"] = init_pos[1] + vel_bulk[1] * df["dt"]
-    df[f"{sc}_pos_z"] = init_pos[2] + vel_bulk[2] * df["dt"]
+    vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
+
+    df["dt"] = df["Timeframe"] - df["Timeframe"].iloc[0]
+
+    #Make artificial spacecraft location for RBF reconstructions
+    for sc, init_pos in sc_init.items():
+        df[f"{sc}_pos_x"] = init_pos[0] + vel_bulk[0] * df["dt"]
+        df[f"{sc}_pos_y"] = init_pos[1] + vel_bulk[1] * df["dt"]
+        df[f"{sc}_pos_z"] = init_pos[2] + vel_bulk[2] * df["dt"]
 
 
-pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
-                for sc in sc_init.keys()], [])
-B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
-                for sc in sc_init.keys()], [])
+    pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
+                    for sc in sc_init.keys()], [])
+    B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
+                    for sc in sc_init.keys()], [])
+    return pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z
+
+def dynamic_bulk_velocity(sc_nums = range(1,5)):
+   
+    v_x_cols = [f"vg_v_x_point{n}" for n in sc_nums]
+    v_y_cols = [f"vg_v_y_point{n}" for n in sc_nums]
+    v_z_cols = [f"vg_v_z_point{n}" for n in sc_nums]
+    df_v["v_bulk_x"] = df_v[v_x_cols].mean(axis=1)
+    df_v["v_bulk_y"] = df_v[v_y_cols].mean(axis=1)
+    df_v["v_bulk_z"] = df_v[v_z_cols].mean(axis=1)
+
+    df["delta_t"] = df["Timeframe"].diff().fillna(0.0)
+    
+
+    df["disp_x"] = (-df_v["v_bulk_x"]*df["delta_t"]).cumsum()
+    df["disp_y"] = (-df_v["v_bulk_y"]*df["delta_t"]).cumsum()
+    df["disp_z"] = (-df_v["v_bulk_z"]*df["delta_t"]).cumsum()
+
+    for sc, init_pos in sc_init.items():
+        df[f"{sc}_pos_x"] = init_pos[0] + df["disp_x"]
+        df[f"{sc}_pos_y"] = init_pos[1] + df["disp_y"]
+        df[f"{sc}_pos_z"] = init_pos[2] + df["disp_z"]
+
+    pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
+                    for sc in sc_init.keys()], [])
+    B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
+                    for sc in sc_init.keys()], [])
+
+    return pos_cols, B_cols
+#bulk velocity type
+vel_bulk_static = False
+
+if vel_bulk_static:
+    pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z = static_bulk_velocity()
+else:
+    pos_cols, B_cols = dynamic_bulk_velocity()
 
 #######################
 #Radial Basis Function#
@@ -727,17 +772,23 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         ax[1].set_ylabel(r"Point-wise error")
         ax[1].set_title(f"Fraction of points with error <{error_cutoff}%")
         ax[1].grid(True, alpha=0.3)
-        fig.suptitle(f"Bulk velocity: ({np.round(vg_v_x,1)},{np.round(vg_v_y,1)},{np.round(vg_v_z,1)}) m/s")
+        if vel_bulk_static:
+            fig.suptitle(f"Bulk velocity: ({np.round(vg_v_x,1)},{np.round(vg_v_y,1)},{np.round(vg_v_z,1)}) m/s")
+        else:
+            fig.suptitle("Dynamic Bulk velocity")
         fig.tight_layout()
 
         if output_dir == None:
             output_dir = "~/"
 
         if output_file == None:
-            output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(vg_v_x**2+vg_v_y**2+vg_v_z**2)}.png"
+            if vel_bulk_static:
+                output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(vg_v_x**2+vg_v_y**2+vg_v_z**2)}.png"
+            else:
+                output_file = f"Wasserstein_vs_Time+error_abs_dynamic.png"
         
         output_file = output_dir+output_file
-        
+
         plt.savefig(output_file)
 
     return 
@@ -751,7 +802,8 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
 #for i in df["Timeframe"]:
 #   plot_vlas_slices(time = i, output_dir=output_dir)
-#plot_vlas_RBF_error(time = 1360, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1360_L=1.2_error_max_err=120.png")
+#plot_vlas_RBF_error(time = 1347, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1347_L=1.2_dynamic_bulk.png")
 #plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_thight.png", save = False)
-for i in df["Timeframe"]:
-    plot_vlas_RBF_error(time = i, output_dir=output_dir)
+#for i in df["Timeframe"]:
+#    plot_vlas_RBF_error(time = i, output_dir=output_dir)
+#plot_Wass_time(output_dir=output_dir)
