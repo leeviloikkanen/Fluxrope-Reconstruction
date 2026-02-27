@@ -1556,6 +1556,105 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
     
     return
 
+def fieldlines_3D_vtk(pos = 40, ood = False, save = False, out_path = None, pad = 0.2, vlas_lines = True, RBF_lines = True, extended_x = False, grid_info = False):
+    """
+    Purpose of this script is to recreate fieldlines_3D() purely in vtk without Pyvista
+    interactive 3D plot of field lines traces from RBF and Vlasiator data. Currently easiest way 
+    to interact with the plot is to use ood.cs.helsinki.fi and running the script on there.
+    Set ood to True to show plots 
+    Code modified from/inspired by: https://magpylib.readthedocs.io/en/latest/_pages/user_guide/examples/examples_vis_pv_streamlines.html 
+    """
+    import vtk
+    from vtk.util import numpy_support
+
+    #Process vectors from numpy into vtk grid
+    pos_idx = pos  
+    sc_now = df.iloc[pos_idx][pos_cols].to_numpy().reshape(7, 3)/1000.0  
+    sc_included = df.iloc[pos_idx][included_pos_cols].to_numpy().reshape(int(len(included_pos_cols)/3), 3)/1000.0
+    
+    padding = pad
+    if extended_x:
+        extend_x = 1.5*R_e_km
+    else:
+        extend_x = 0
+    #For the integration set resolution to be more directly correlated to step size
+    bounds_km = np.array([
+        sc_now[:, 0].min() - extend_x - padding * R_e_km,
+        sc_now[:, 0].max() + extend_x + padding * R_e_km,
+        sc_now[:, 1].min() - padding * R_e_km,
+        sc_now[:, 1].max() + padding * R_e_km,
+        sc_now[:, 2].min() - padding * R_e_km,
+        sc_now[:, 2].max() + padding * R_e_km,
+    ])
+    spacing = (200.0, 200.0, 200.0)
+    dims = (
+        int((bounds_km[1] - bounds_km[0]) // spacing[0]) + 1,
+        int((bounds_km[3] - bounds_km[2]) // spacing[1]) + 1,
+        int((bounds_km[5] - bounds_km[4]) // spacing[2]) + 1,
+    )
+    
+    grid = vtk.vtkImageData()
+    grid.SetOrigin(bounds_km[0],bounds_km[2],bounds_km[4])
+    grid.SetSpacing(spacing)
+    grid.SetDimensions(dims)
+
+    #According to pyvista code this works for vtk versions 9.4>
+    vtk_points = grid.GetPoints().GetData()
+    grid_pts_km = numpy_support.vtk_to_numpy(vtk_points)
+    grid_pts_m = grid_pts_km*1000
+
+    B_RBF = rbf(grid_pts_km)
+    R_VLAS = vlsvfile.read_interpolated_variable("vg_b_vol", grid_pts_m)
+
+    def add_vecs_to_grid(grid, vectors, name):
+        
+        vtk_vecs = numpy_support.numpy_to_vtk(np.ascontiguousarray(vectors), deep = True)
+        vtk_vecs.SetName(name)
+        grid.GetPointData().AddArray(vtk_vecs)
+        grid.GetPointData().SetActiveVectors(name)
+
+    if RBF_lines:
+        add_vecs_to_grid(grid, B_RBF, "B_RBF")
+    if vlas_lines:
+        add_vecs_to_grid(grid, R_VLAS, "B_VLAS")
+    if grid_info:
+        #had to make sure the data actually exists 
+        print(grid.GetPointData())
+        #shows also which vector field is at the moment set active
+    #Seed points 
+    #INTEGRAL CURVE SEED POINTS
+    #spacing of field line seeds
+    buffer = 0.2*R_e_km
+    #buffer so that integration doesn't start at edge
+    #Notice buffer sign
+    grid_seed_spacing = 4
+    x = np.linspace(bounds_km[0]+buffer, bounds_km[1]-buffer, grid_seed_spacing)
+    y = np.linspace(bounds_km[2]+buffer, bounds_km[3]-buffer, grid_seed_spacing)
+    z = np.linspace(bounds_km[4]+buffer, bounds_km[5]-buffer, grid_seed_spacing)
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    grid_seeds = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+
+  
+    all_seeds = np.vstack([sc_now, grid_seeds])
+    
+
+    #seed_points = pv.PolyData(np.vstack([sc_now]))
+  
+
+    #Trying to add some ame functionality as in the streamlines_from_source function
+    def streamline_tracer(seed_points, vectors, max_lenght, integration_direction):
+        
+
+        #return Polydata vtk object
+        return 
+    
+    #Mapper
+
+    #Actor
+
+    #Plotter    
+
+    return
 ######
 #Main#
 ######
@@ -1573,3 +1672,4 @@ def fieldlines_3D(pos = 40, ood = False, save = False, out_path = None, pad = 0.
 #W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
 #Wasser_by_pos_abs(points, info = True, true_Was=True)
 #W_rel_abs_stats(save = False, anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals_TRUE_missing_inner.csv")
+fieldlines_3D_vtk()
