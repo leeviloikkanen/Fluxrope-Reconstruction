@@ -1659,17 +1659,18 @@ def fieldlines_3D_vtk(pos = 40, ood = False, save = False, out_path = None, pad 
 #Main#
 ######
 
-#CHECK WHICH FILE USED AND OUTPUT FILE NAMES
+if __name__ == "__main__":
 
-#plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
-#full_Wasser_hist(vlas_planes,RBF_planes)
-#Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
-#extrapolation_limit(points, error_cutoff=50, inner = True)
-#limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
-#W_rel_stats(anim = False, is_3D=True, csv_path = "/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_vals.csv")
-#fieldlines_3D(save = True, pos=40, ood= True)
-#plot_point_wise_error(rel_error=False)
-#W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
-#Wasser_by_pos_abs(points, info = True, true_Was=True)
-#W_rel_abs_stats(save = False, anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals_TRUE_missing_inner.csv")
-fieldlines_3D_vtk()
+    #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
+    #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
+    #full_Wasser_hist(vlas_planes,RBF_planes)
+    #Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
+    #extrapolation_limit(points, error_cutoff=50, inner = True)
+    #limit_plot(error_cut = 10, steps = 25, shells=False, pos= 30)
+    #W_rel_stats(anim = False, is_3D=True, csv_path = "/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_vals.csv")
+    #fieldlines_3D(save = True, pos=40, ood= True)
+    #plot_point_wise_error(rel_error=False)
+    #W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
+    #Wasser_by_pos_abs(points, info = True, true_Was=True)
+    #W_rel_abs_stats(save = False, anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals_TRUE_missing_inner.csv")
+    fieldlines_3D_vtk()

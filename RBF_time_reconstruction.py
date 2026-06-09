@@ -32,7 +32,6 @@ vg_v_z = 121311.91965101559
 """
 
 #Shared info
-#TODO plan is to calculate the mean vg_v from 
 vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
 b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
 df_v = pd.read_csv(vg_v_file)
@@ -111,8 +110,9 @@ def dynamic_bulk_velocity(sc_nums = range(1,5)):
                     for sc in sc_init.keys()], [])
 
     return pos_cols, B_cols
+
 #bulk velocity type
-vel_bulk_static = False
+vel_bulk_static = True
 
 if vel_bulk_static:
     pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z = static_bulk_velocity()
@@ -310,8 +310,8 @@ def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny =
         Bx, By, Bz = (Bxyz[:, i].reshape(nx, ny) for i in range(3))
         return Y, Z, By, Bz, Bx   
     else:
-        raise "Invalid Plane, Options: xy, xz, yz"                        
-                           
+        raise "Invalid Plane, Options: xy, xz, yz"  
+
 def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
     """
     Plotting vlasiators slices at the barycenter of the spacecraft constellations
@@ -461,6 +461,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     output_file : Output file name 
     
     TODO: Recenter RBF points to original points. Could be just set vlasiator grid for RBF grid
+    Currently I guess SCs moving in the flux rope rest frame?!?
     """
     #Vlasitor DATA
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
@@ -795,15 +796,19 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
 
 #RUN
-#for i in range(T):
-#    plot_rbf_slices(t_idx= i)
-#Wasserstein_Hull(time = 1340, save = False)
-#plot_Wass_time(output_dir=output_dir,output_file=f"Wasserstein_vs_Time.png")
+if __name__ == "__main__":
+    #for i in range(T):
+    #    plot_rbf_slices(t_idx= i)
+    #Wasserstein_Hull(time = 1340, save = False)
+    #plot_Wass_time(output_dir=output_dir,output_file=f"Wasserstein_vs_Time.png")
 
-#for i in df["Timeframe"]:
-#   plot_vlas_slices(time = i, output_dir=output_dir)
-#plot_vlas_RBF_error(time = 1347, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1347_L=1.2_dynamic_bulk.png")
-#plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_thight.png", save = False)
-#for i in df["Timeframe"]:
-#    plot_vlas_RBF_error(time = i, output_dir=output_dir)
-#plot_Wass_time(output_dir=output_dir)
+    #for i in df["Timeframe"]:
+    #   plot_vlas_slices(time = i, output_dir=output_dir)
+    #plot_vlas_RBF_error(time = 1347, output_dir=output_dir, output_file=f"full_vlas_rbf_comp_time=1347_L=1.2_dynamic_bulk.png")
+    #plot_Wass_time(output_dir=output_dir, output_file="Wasserstein_vs_Time+error_bulk_thight.png", save = False)
+    #for i in df["Timeframe"]:
+    #    plot_vlas_RBF_error(time = i, output_dir=output_dir)
+    #plot_Wass_time(output_dir=output_dir)
+
+    #plot_vlas_RBF_error(time = 1360, output_dir="./")
+    plot_vlas_slices(time=1360, output_dir="./")
