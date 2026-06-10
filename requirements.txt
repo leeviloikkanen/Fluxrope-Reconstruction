@@ -1,0 +1,8 @@
+numpy
+pandas
+pyvista
+matplotlib
+scipy
+scikit-learn
+analysator @ git+https://github.com/fmihpc/analysator@master
+trimesh
