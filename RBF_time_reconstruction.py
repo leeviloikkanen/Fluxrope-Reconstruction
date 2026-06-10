@@ -17,6 +17,7 @@ from sklearn.neighbors import NearestNeighbors
 import matplotlib as mpl
 import analysator as pt
 import scipy
+from flow_type import flow_type
 
 """
 #SC1-4 overall means (from 1353 onwards):
@@ -34,8 +35,8 @@ vg_v_z = 121311.91965101559
 #Shared info
 vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
 b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
-df_v = pd.read_csv(vg_v_file)
-df = pd.read_csv(b_field_file)
+#df_v = pd.read_csv(vg_v_file)
+#df = pd.read_csv(b_field_file)
 
 
 #Earth radius in meters 
@@ -54,10 +55,18 @@ sc_init = {
     "sc6": np.array([-26.85714286, 3.12371791, 0.42857143]) * R_e,
     "sc7": np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e,
     }
+
+flow = flow_type(sc_init, vg_v_file, b_field_file)
+pos_cols, B_cols= flow.steady_flow_velocity()
+
+df = flow.df
+df_v = flow.df_v
+
+
 times = df["Timeframe"].to_numpy() 
 T = len(times)
 sc_names  = [f"sc{i}" for i in range(1, 8)]
-
+"""
 def static_bulk_velocity():
     #SC1-4 overall mean:
     #SC1-4 is the outer tetrahedron and likely good approximation of bulk velocity
@@ -118,10 +127,11 @@ if vel_bulk_static:
     pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z = static_bulk_velocity()
 else:
     pos_cols, B_cols = dynamic_bulk_velocity()
-
+"""
 #######################
 #Radial Basis Function#
 #######################
+
 
 centers = (df[pos_cols].to_numpy().reshape(T * 7, 3))  
 values  =  df[B_cols].to_numpy().reshape(T * 7, 3)   
@@ -810,5 +820,7 @@ if __name__ == "__main__":
     #    plot_vlas_RBF_error(time = i, output_dir=output_dir)
     #plot_Wass_time(output_dir=output_dir)
 
-    #plot_vlas_RBF_error(time = 1360, output_dir="./")
-    plot_vlas_slices(time=1360, output_dir="./")
+    plot_vlas_RBF_error(time = 1360, output_dir="./", output_file="RBF_individual_flow_reconstruction_1360s.png")
+    #plot_vlas_slices(time=1360, output_dir="./")
+    #for time in times:
+    #plot_rbf_slices(time=1360, output_dir="./")
