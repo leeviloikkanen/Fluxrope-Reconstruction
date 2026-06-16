@@ -14,6 +14,7 @@ class flow_type:
         self.df_v = pd.read_csv(velocity_path)
         self.df = pd.read_csv(B_field_path)
         self.sc_init = sc_init
+        self.static_vel = None
         
         pass
 
@@ -42,7 +43,9 @@ class flow_type:
                         for sc in self.sc_init.keys()], [])
         B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
                         for sc in self.sc_init.keys()], [])
-        return pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z
+        self.static_vel = np.array([vg_v_x, vg_v_y, vg_v_z])
+        
+        return pos_cols, B_cols
 
     def dynamic_bulk_velocity(self, sc_nums = range(1,5)):
     

@@ -15,7 +15,9 @@ from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
 import matplotlib as mpl
-import analysator as pt
+import sys
+sys.path.insert(0, "/home/leeviloi/analysator-dev")
+import analysator as pt; print(pt.__file__)
 import scipy
 from flow_type import flow_type
 
@@ -66,68 +68,7 @@ df_v = flow.df_v
 times = df["Timeframe"].to_numpy() 
 T = len(times)
 sc_names  = [f"sc{i}" for i in range(1, 8)]
-"""
-def static_bulk_velocity():
-    #SC1-4 overall mean:
-    #SC1-4 is the outer tetrahedron and likely good approximation of bulk velocity
-    #as is not over weighted by the inner
-    vg_v_x = -739256.9
-    vg_v_y = -268152.8
-    vg_v_z =  147101.5
 
-    vel_bulk = -1*np.array([vg_v_x,vg_v_y,vg_v_z])
-
-    df["dt"] = df["Timeframe"] - df["Timeframe"].iloc[0]
-
-    #Make artificial spacecraft location for RBF reconstructions
-    for sc, init_pos in sc_init.items():
-        df[f"{sc}_pos_x"] = init_pos[0] + vel_bulk[0] * df["dt"]
-        df[f"{sc}_pos_y"] = init_pos[1] + vel_bulk[1] * df["dt"]
-        df[f"{sc}_pos_z"] = init_pos[2] + vel_bulk[2] * df["dt"]
-
-
-    pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
-                    for sc in sc_init.keys()], [])
-    B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
-                    for sc in sc_init.keys()], [])
-    return pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z
-
-def dynamic_bulk_velocity(sc_nums = range(1,5)):
-   
-    v_x_cols = [f"vg_v_x_point{n}" for n in sc_nums]
-    v_y_cols = [f"vg_v_y_point{n}" for n in sc_nums]
-    v_z_cols = [f"vg_v_z_point{n}" for n in sc_nums]
-    df_v["v_bulk_x"] = df_v[v_x_cols].mean(axis=1)
-    df_v["v_bulk_y"] = df_v[v_y_cols].mean(axis=1)
-    df_v["v_bulk_z"] = df_v[v_z_cols].mean(axis=1)
-
-    df["delta_t"] = df["Timeframe"].diff().fillna(0.0)
-    
-
-    df["disp_x"] = (-df_v["v_bulk_x"]*df["delta_t"]).cumsum()
-    df["disp_y"] = (-df_v["v_bulk_y"]*df["delta_t"]).cumsum()
-    df["disp_z"] = (-df_v["v_bulk_z"]*df["delta_t"]).cumsum()
-
-    for sc, init_pos in sc_init.items():
-        df[f"{sc}_pos_x"] = init_pos[0] + df["disp_x"]
-        df[f"{sc}_pos_y"] = init_pos[1] + df["disp_y"]
-        df[f"{sc}_pos_z"] = init_pos[2] + df["disp_z"]
-
-    pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
-                    for sc in sc_init.keys()], [])
-    B_cols   = sum([[f"{sc}_vg_B_x", f"{sc}_vg_B_y", f"{sc}_vg_B_z"]
-                    for sc in sc_init.keys()], [])
-
-    return pos_cols, B_cols
-
-#bulk velocity type
-vel_bulk_static = True
-
-if vel_bulk_static:
-    pos_cols, B_cols, vg_v_x, vg_v_y, vg_v_z = static_bulk_velocity()
-else:
-    pos_cols, B_cols = dynamic_bulk_velocity()
-"""
 #######################
 #Radial Basis Function#
 #######################
@@ -138,7 +79,7 @@ values  =  df[B_cols].to_numpy().reshape(T * 7, 3)
 
 #LOOCV method 
 
-def E_func(eps, centers, values):
+def E_func(eps, centers, values, kernel):
     #O(N³) so scales poorly with number of points
     N_pts = np.shape(centers)[0]
     L= np.shape(centers)[1]
@@ -147,7 +88,7 @@ def E_func(eps, centers, values):
     for i in range(N_pts):
         r_used = np.vstack((centers[:i,:],centers[i+1:,:]))
         b_used = np.vstack((values[:i,:],values[i+1:,:]))
-        rbf_trial = RBFInterpolator(r_used,b_used, kernel="multiquadric",
+        rbf_trial = RBFInterpolator(r_used,b_used, kernel=kernel,
                     epsilon=eps,
                     smoothing=0.0
                     )
@@ -162,7 +103,7 @@ def E_func(eps, centers, values):
 
 #Slow own minimizatin function. Probably better to try use something like 
 #scipy.optimization.minimize. Values very small tho
-def find_eps(centers, values, style = "log", start = -4, end = 4, Num = 20):
+def find_eps(centers, values, kernel, style = "log", start = -14, end = 0, Num = 20):
     #Simple function to loop through epsilon values to find best one
     if style == "log":
         slots = np.logspace(start, end, Num)
@@ -175,7 +116,7 @@ def find_eps(centers, values, style = "log", start = -4, end = 4, Num = 20):
     min = 1
     for i in slots:
         
-        res = E_func(i,centers, values)
+        res = E_func(i,centers, values, kernel)
         
         #print(res)
         if res< min:
@@ -184,7 +125,7 @@ def find_eps(centers, values, style = "log", start = -4, end = 4, Num = 20):
     return min_eps, min
 
 #MAIN RBF reconstruction function 
-def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
+def RBF_missing_data(missing_sc = None, eps_method = "neighbour", kernel = "multiquadric"):
     #Modify to select only sc that aren't in missing_sc then just same things as below: 
 
     if missing_sc is None:
@@ -204,24 +145,27 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour"):
 
     if eps_method == "neighbour":
         epsilon = np.median(dists[:, 1])
-    if eps_method == "LOOCV":
+    elif eps_method == "LOOCV":
         #This is very slow and seemingly choise of epsilon >1e-3 makes little difference 
         #run once and the manually set found epsilon.
-        epsilon, _ = find_eps(centers_inc,values_inc)
+        epsilon, _ = find_eps(centers_inc,values_inc, kernel)
+    
 
     print(f"RBF epsilon (missing {missing_sc}) = {epsilon/1000:.3g} km")
     
     #RBF interpolation
     rbf = RBFInterpolator(
         centers_inc, values_inc,
-        kernel="multiquadric",
+        kernel=kernel,
         epsilon=epsilon,
         smoothing=0.0
     )
 
-    return rbf, included_pos_cols, included_B_cols
+    return rbf, included_pos_cols, included_B_cols, included_sc
 
-rbf, included_pos_cols, included_B_cols =  RBF_missing_data()
+
+
+rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data()
 
 def sample_slice(coord1, coord2, const_coord, plane, nx, ny):
     """
@@ -322,6 +266,48 @@ def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny =
     else:
         raise "Invalid Plane, Options: xy, xz, yz"  
 
+def sample_slice_vlas_coords(time, coord1, coord2, const_coord, plane, nx = 200, ny = 200):
+    """
+    main thing to note about this function is that the output
+    order of coordinates is dependant on chosen plane
+    ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
+    Out of plane component will always be last
+    """
+    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
+    print(file)
+    vlsvfile = pt.vlsvfile.VlsvReader(file)
+    
+
+    if plane == "xy":
+        X, Y = np.meshgrid(coord1, coord2)                 
+        pts  = np.column_stack([X.ravel(), Y.ravel(),
+                                np.full(X.size, const_coord)])
+        Bxyz = vlsvfile.read_interpolated_variable("vg_b_vol", pts)
+        Bx, By, Bz = (Bxyz[:, i].reshape(nx, ny) for i in range(3))
+        return X, Y, Bx, By, Bz                            
+    elif plane == "xz":
+        X, Z = np.meshgrid(coord1, coord2)                 
+        pts  = np.column_stack([X.ravel(),
+                                np.full(X.size, const_coord),
+                                Z.ravel()])
+        Bxyz = vlsvfile.read_interpolated_variable("vg_b_vol", pts)
+        Bx, By, Bz = (Bxyz[:, i].reshape(nx, ny) for i in range(3))
+        return X, Z, Bx, Bz, By                            
+    elif plane == "yz":
+        Y, Z = np.meshgrid(coord1, coord2)                
+        pts  = np.column_stack([np.full(Y.size, const_coord),
+                                Y.ravel(), Z.ravel()])
+        Bxyz = vlsvfile.read_interpolated_variable("vg_b_vol", pts)
+        Bx, By, Bz = (Bxyz[:, i].reshape(nx, ny) for i in range(3))
+        return Y, Z, By, Bz, Bx                           
+
+
+def sample_slice_any_plane():
+    """
+    
+    """
+    return
+
 def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
     """
     Plotting vlasiators slices at the barycenter of the spacecraft constellations
@@ -333,14 +319,43 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
     :kword output_file: Output file name 
     
     """
+    """
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
     print(file)
     vlsvfile = pt.vlsvfile.VlsvReader(file)
+
     XY = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
     XZ = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
     YZ = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
 
     init_pts = np.vstack(list(sc_init.values()))
+    """
+    bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
+    file_readers = []
+    for t in df["Timeframe"].values:
+        file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
+
+    injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
+
+    time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
+
+    streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
+                                                        points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
+    i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
+    j_rel = streakobj._time_to_idx(time = time)
+    ref_points = streakobj.M[:,i_rel,j_rel]
+    bary_vlas  = ref_points.mean(axis=0)                              
+
+    L_vlas = L_Re*R_e
+                             
+    x = np.linspace(bary_vlas[0]-L_vlas, bary_vlas[0]+L_vlas, nx)
+    y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
+    z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
+    init_pts = ref_points
+    
+    XY = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
+    XZ = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
+    YZ = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
 
     fig, axs = plt.subplots(1, 3, figsize=(15,5), constrained_layout=True)
     for ax, (data, title) in zip(axs, zip([XY,XZ,YZ], ["X-Y","X-Z","Y-Z"])):
@@ -474,6 +489,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     Currently I guess SCs moving in the flux rope rest frame?!?
     """
     #Vlasitor DATA
+    """
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
     print(file)
     vlsvfile = pt.vlsvfile.VlsvReader(file)
@@ -482,6 +498,33 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     YZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
 
     init_pts = np.vstack(list(sc_init.values()))
+    """
+    bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
+    file_readers = []
+    for t in df["Timeframe"].values:
+        file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
+
+    injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
+
+    time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
+
+    streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
+                                                        points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
+    i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
+    j_rel = streakobj._time_to_idx(time = time)
+    ref_points = streakobj.M[:,i_rel,j_rel]
+    bary_vlas  = ref_points.mean(axis=0)                              
+
+    L_vlas = L_Re*R_e
+                             
+    x = np.linspace(bary_vlas[0]-L_vlas, bary_vlas[0]+L_vlas, nx)
+    y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
+    z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
+    init_pts = ref_points
+    
+    XY_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
+    XZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
+    YZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
     vlas_planes = [XY_vlas, XZ_vlas, YZ_vlas]
     
     #RBF DATA
@@ -625,7 +668,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
 
     #fig.tight_layout()
-    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time = {time}s", fontsize = 20)
+    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time 1372, release time = {time}s", fontsize = 20)
     if save:
         if output_dir == None:
             output_dir = "~/"
@@ -783,8 +826,8 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         ax[1].set_ylabel(r"Point-wise error")
         ax[1].set_title(f"Fraction of points with error <{error_cutoff}%")
         ax[1].grid(True, alpha=0.3)
-        if vel_bulk_static:
-            fig.suptitle(f"Bulk velocity: ({np.round(vg_v_x,1)},{np.round(vg_v_y,1)},{np.round(vg_v_z,1)}) m/s")
+        if flow.static_vel is not None:
+            fig.suptitle(f"Bulk velocity: ({np.round(flow.static_vel[0],1)},{np.round(flow.static_vel[1],1)},{np.round(flow.static_vel[2],1)}) m/s")
         else:
             fig.suptitle("Dynamic Bulk velocity")
         fig.tight_layout()
@@ -793,8 +836,8 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
             output_dir = "~/"
 
         if output_file == None:
-            if vel_bulk_static:
-                output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(vg_v_x**2+vg_v_y**2+vg_v_z**2)}.png"
+            if flow.static_vel is not None:
+                output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(flow.static_vel[0]**2+flow.static_vel[1]**2+flow.static_vel[2]**2)}.png"
             else:
                 output_file = f"Wasserstein_vs_Time+error_abs_dynamic.png"
         
@@ -819,8 +862,28 @@ if __name__ == "__main__":
     #for i in df["Timeframe"]:
     #    plot_vlas_RBF_error(time = i, output_dir=output_dir)
     #plot_Wass_time(output_dir=output_dir)
+    time = 1360
+    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
+    #print(file)
+    #vlsvfile = pt.vlsvfile.VlsvReader(file)
+    #sample_slice_vlas(plane ="xy", time = 1340.1, streak = True)
+    """
+    bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
+    file_readers = []
+    for t in df["Timeframe"].values:
+        file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
 
-    plot_vlas_RBF_error(time = 1360, output_dir="./", output_file="RBF_individual_flow_reconstruction_1360s.png")
-    #plot_vlas_slices(time=1360, output_dir="./")
+    injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
+
+    time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
+
+    streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
+                                                        points_per = 10, method = "RK4", tracked_vars = ["vg_b_vol"])
+    """
+    for time in range(1341,1372,3): 
+
+        plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}s.png")
+
+    #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:
     #plot_rbf_slices(time=1360, output_dir="./")
