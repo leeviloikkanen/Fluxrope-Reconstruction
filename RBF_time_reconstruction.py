@@ -847,7 +847,6 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
 
     return 
 
-
 #RUN
 if __name__ == "__main__":
     #for i in range(T):
@@ -880,10 +879,13 @@ if __name__ == "__main__":
     streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
                                                         points_per = 10, method = "RK4", tracked_vars = ["vg_b_vol"])
     """
-    for time in range(1341,1372,3): 
+    #for time in range(1351,1361,3): 
 
-        plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}s.png")
+    #    plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}_cutoff.png")
 
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:
     #plot_rbf_slices(time=1360, output_dir="./")
+    from export_rbf import export_rbf_vtk
+
+    grid = export_rbf_vtk(df = df,rbf=rbf, included_pos_cols=included_pos_cols,use_convex_hull = True, padding_Re=0.5, output_path="./RBF_reconstruction_vtk_1340_1372_fine.vts")

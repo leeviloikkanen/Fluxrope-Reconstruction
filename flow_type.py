@@ -11,8 +11,14 @@ import scipy
 class flow_type:
     def __init__(self, sc_init, velocity_path, B_field_path):
 
-        self.df_v = pd.read_csv(velocity_path)
-        self.df = pd.read_csv(B_field_path)
+        df_v = pd.read_csv(velocity_path)
+        #df_v = df_v.iloc[10:-10]
+        self.df_v = df_v
+
+        df = pd.read_csv(B_field_path)
+        #df = df.iloc[10:-10]
+        self.df = df
+
         self.sc_init = sc_init
         self.static_vel = None
         
