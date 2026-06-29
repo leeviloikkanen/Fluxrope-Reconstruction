@@ -83,12 +83,14 @@ class flow_type:
     
     #THESE ARE FLOW MOVING THE DATA POINTS ALONG WITH IT AND STRUCTURE ASSUMED TO BE STABLE
     
-    def steady_flow_velocity(self):
+    def steady_flow_velocity(self, t_ref = None):
         
 
         times = self.df["Timeframe"].values
-        t_end = times[-1]
-        dt_to_end = t_end-times
+        if t_ref is None: 
+            t_ref = times[-1]
+
+        dt_to_ref = t_ref-times
         T = len(times)
 
         for n, (sc, init_pos) in zip(range(1,len(self.sc_init)+1), self.sc_init.items()):
@@ -96,9 +98,9 @@ class flow_type:
             v_y = self.df_v[f"vg_v_y_point{n}"].values
             v_z = self.df_v[f"vg_v_z_point{n}"].values
 
-            self.df[f"{sc}_pos_x"] = init_pos[0] + v_x*dt_to_end
-            self.df[f"{sc}_pos_y"] = init_pos[1] + v_y*dt_to_end
-            self.df[f"{sc}_pos_z"] = init_pos[2] + v_z*dt_to_end
+            self.df[f"{sc}_pos_x"] = init_pos[0] + v_x*dt_to_ref
+            self.df[f"{sc}_pos_y"] = init_pos[1] + v_y*dt_to_ref
+            self.df[f"{sc}_pos_z"] = init_pos[2] + v_z*dt_to_ref
             
         pos_cols = sum([[f"{sc}_pos_x", f"{sc}_pos_y", f"{sc}_pos_z"]
                         for sc in self.sc_init.keys()], [])

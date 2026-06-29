@@ -59,7 +59,7 @@ sc_init = {
     }
 
 flow = flow_type(sc_init, vg_v_file, b_field_file)
-pos_cols, B_cols= flow.steady_flow_velocity()
+pos_cols, B_cols= flow.steady_flow_velocity(t_ref=1360)
 
 df = flow.df
 df_v = flow.df_v
@@ -885,7 +885,4 @@ if __name__ == "__main__":
 
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:
-    #plot_rbf_slices(time=1360, output_dir="./")
-    from export_rbf import export_rbf_vtk
-
-    grid = export_rbf_vtk(df = df,rbf=rbf, included_pos_cols=included_pos_cols,use_convex_hull = True, padding_Re=0.5, output_path="./RBF_reconstruction_vtk_1340_1372_fine.vts")
+    plot_rbf_slices(time=1360, output_dir="./")
