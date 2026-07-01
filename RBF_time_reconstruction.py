@@ -35,8 +35,10 @@ vg_v_z = 121311.91965101559
 """
 
 #Shared info
-vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
-b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
+#vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
+#b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
+vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv"
+b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv"
 #df_v = pd.read_csv(vg_v_file)
 #df = pd.read_csv(b_field_file)
 
@@ -48,6 +50,7 @@ R_e = 6371000
 output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
 #STARTING SC locations 
+"""
 sc_init = {
     "sc1": np.array([-27.0, 3.0, 0.5]) * R_e,
     "sc2": np.array([-26.0, 3.0, 1.5]) * R_e,
@@ -57,9 +60,19 @@ sc_init = {
     "sc6": np.array([-26.85714286, 3.12371791, 0.42857143]) * R_e,
     "sc7": np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e,
     }
-
-flow = flow_type(sc_init, vg_v_file, b_field_file)
-pos_cols, B_cols= flow.steady_flow_velocity(t_ref=1360)
+"""
+sc_init = {
+    "sc1": np.array([6.0, -11.0, -1.0]) * R_e,
+    "sc2": np.array([6.52532199, -10.14909648, 0.0]) * R_e,
+    "sc3": np.array([5.78841792, -9.69415429, -1.5]) * R_e,
+    "sc4": np.array([7.26222606, -10.60403866, -1.5]) * R_e,
+    "sc5": np.array([6.07504600, -10.87844235, -0.85714286]) * R_e,
+    "sc6": np.array([5.96977399, -10.81345061, -1.07142857]) * R_e,
+    "sc7": np.array([6.18031801, -10.94343409, -1.07142857]) * R_e,
+}
+flow = flow_type(sc_init, vg_v_file, b_field_file, start_time= 1440, end_time= 1444)
+t_ref = 1442
+pos_cols, B_cols= flow.steady_flow_velocity(t_ref=t_ref)
 
 df = flow.df
 df_v = flow.df_v
@@ -319,7 +332,7 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
     :kword output_file: Output file name 
     
     """
-    """
+
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
     print(file)
     vlsvfile = pt.vlsvfile.VlsvReader(file)
@@ -356,6 +369,7 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
     XY = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
     XZ = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
     YZ = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
+    """
 
     fig, axs = plt.subplots(1, 3, figsize=(15,5), constrained_layout=True)
     for ax, (data, title) in zip(axs, zip([XY,XZ,YZ], ["X-Y","X-Z","Y-Z"])):
@@ -489,7 +503,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     Currently I guess SCs moving in the flux rope rest frame?!?
     """
     #Vlasitor DATA
-    """
+ 
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
     print(file)
     vlsvfile = pt.vlsvfile.VlsvReader(file)
@@ -521,10 +535,11 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
     z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
     init_pts = ref_points
-    
+       
     XY_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
     XZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
     YZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
+    """
     vlas_planes = [XY_vlas, XZ_vlas, YZ_vlas]
     
     #RBF DATA
@@ -668,7 +683,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
 
     #fig.tight_layout()
-    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time 1372, release time = {time}s", fontsize = 20)
+    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time {t_ref}, release time = {time}s", fontsize = 20)
     if save:
         if output_dir == None:
             output_dir = "~/"
@@ -885,4 +900,6 @@ if __name__ == "__main__":
 
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:
-    plot_rbf_slices(time=1360, output_dir="./")
+    #plot_rbf_slices(time=1360, output_dir="./")
+    plot_vlas_RBF_error(time=1442, output_dir="./", output_file="vlas_rbf_reconstruction_ref_time_1442s_time_1442_constrained_2s")
+   

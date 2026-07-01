@@ -32,8 +32,18 @@ sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 """
-points = get_sc_locations(rotation=0,translation=[-27,3,0.5], in_scl=5,scale_constellation=1)
+sc1 = np.array([6.0, -11.0, -1.0]) * R_e
+sc2 = np.array([6.52532199, -10.14909648, 0.0]) * R_e
+sc3 = np.array([5.78841792, -9.69415429, -1.5]) * R_e
+sc4 = np.array([7.26222606, -10.60403866, -1.5]) * R_e
+sc5 = np.array([6.075046, -10.87844235, -0.85714286]) * R_e
+sc6 = np.array([5.96977399, -10.81345061, -1.07142857]) * R_e
+sc7 = np.array([6.18031801, -10.94343409, -1.07142857]) * R_e
 
+points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
+"""
+points = get_sc_locations(rotation=45,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1)
+"""
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
 #Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
@@ -104,7 +114,7 @@ def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
 
 
     #create output .csv file 
-    output_filename = '/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv'
+    output_filename = '/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv'
     with open(output_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(data)
@@ -151,9 +161,9 @@ def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, sc
         writer.writerows(data)
 #[6,-11,-1],[10,-5,-1]
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
-#Timeseries(start_time=1340,end_time=1372)
+Timeseries(start_time=1400,end_time=1500)
 #High res fly through:[6,-6.5,-2.6],[10.327,-6.5,-2.6]
-
+"""
 scales = np.linspace(0.5,1.9,8)
 print(scales)
 
@@ -162,3 +172,4 @@ for scale in scales:
     points_scl = get_sc_locations(rotation=45,translation=[6,-11,-1],in_scl=5,scale_constellation=scale)
     points_scl = points_scl*R_e
     staticTime([6,-11,-1],[10,-5,-1],points=points_scl,N=100,scale=scale)
+"""

@@ -58,3 +58,8 @@ def get_sc_locations(rotation, translation,axis = "z",
 
     return np.vstack(sc_locs)
 
+
+if __name__ == "__main__":
+    points = get_sc_locations(rotation=58,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1)
+    print(points)
+    pass

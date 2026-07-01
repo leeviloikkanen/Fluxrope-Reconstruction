@@ -25,7 +25,8 @@ import scipy
 scale = 1.7
 #df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 #df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly")
-df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv")
+#df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_through+pos_z=-1_inner_scale=0.14.csv")
+df = pd.read_csv(f"/home/leeviloi/plas_obs_vg_b_full_1432_fly_up+pos_z=-1.csv")
 #TODO: modify functions to have directly some folder_dir+identifier to automatically change file names and locations at start 
 output_dir = ""
 
@@ -43,7 +44,7 @@ Lsize = 1.2
 L_vlas = Lsize * R_e    
 L_rbf = Lsize * R_e_km  
 #position of examination and resolution
-pos_idx = 20       
+pos_idx = 0       
 nx, ny  = 200, 200    
 
 times = df["Position_Index"].to_numpy() 
@@ -610,7 +611,7 @@ def plot_vlas_RBF_error(vlas_planes, rbf_planes, save = True, rel_error = True, 
     fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at Pos={pos_idx}, time = {t}", fontsize = 20)
     if save:
         if rel_error:
-            plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/fly_up/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD_scale_{scale}_new_eps.png")
+            plt.savefig(f"/home/leeviloi/fluxrope_thesis/fly_up_z=-1_inner=0.14/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_GOOD.png")
         else: 
             plt.savefig(f"/home/leeviloi/fluxrope_thesis/scaled_constellations/full_vlas_rbf_comp_pos_{pos_idx}_time={t}_L={Lsize}_abs_error.png")                
     return
@@ -1662,7 +1663,7 @@ def fieldlines_3D_vtk(pos = 40, ood = False, save = False, out_path = None, pad 
 if __name__ == "__main__":
 
     #CHECK WHICH FILE USED AND OUTPUT FILE NAMES
-    #plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
+    plot_vlas_RBF_error(vlas_planes,RBF_planes, points=points_incl, rel_error=True)
     #full_Wasser_hist(vlas_planes,RBF_planes)
     #Wasser_3D_hist(points, pos_idx=66, save = False, error_cutoff=20.0, compute_3D = True)
     #extrapolation_limit(points, error_cutoff=50, inner = True)
@@ -1673,4 +1674,5 @@ if __name__ == "__main__":
     #W_rel_abs_stats(anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals.csv")
     #Wasser_by_pos_abs(points, info = True, true_Was=True)
     #W_rel_abs_stats(save = False, anim = False, csv_path="/home/leeviloi/fluxrope_thesis/fly_up_0.14_W_rel_abs_vals_TRUE_missing_inner.csv")
-    fieldlines_3D_vtk()
+    #fieldlines_3D_vtk()
+    

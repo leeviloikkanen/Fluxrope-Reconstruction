@@ -9,15 +9,21 @@ import analysator as pt
 import scipy
 
 class flow_type:
-    def __init__(self, sc_init, velocity_path, B_field_path):
+    def __init__(self, sc_init, velocity_path, B_field_path, start_time = None, end_time = None):
 
         df_v = pd.read_csv(velocity_path)
-        #df_v = df_v.iloc[10:-10]
-        self.df_v = df_v
-
         df = pd.read_csv(B_field_path)
-        #df = df.iloc[10:-10]
-        self.df = df
+
+        if start_time is not None:
+            df_v = df_v[df_v["Timeframe"] >= start_time]
+            df = df[df["Timeframe"] >= start_time]
+
+        if end_time is not None:
+            df_v = df_v[df_v["Timeframe"] <= end_time]
+            df = df[df["Timeframe"] <= end_time]
+
+        self.df_v = df_v.reset_index(drop=True)
+        self.df = df.reset_index(drop=True)
 
         self.sc_init = sc_init
         self.static_vel = None
