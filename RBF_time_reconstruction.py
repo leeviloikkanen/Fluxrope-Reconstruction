@@ -35,10 +35,10 @@ vg_v_z = 121311.91965101559
 """
 
 #Shared info
-#vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
-#b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
-vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv"
-b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv"
+vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
+b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
+#vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv"
+#b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv"
 #df_v = pd.read_csv(vg_v_file)
 #df = pd.read_csv(b_field_file)
 
@@ -50,7 +50,7 @@ R_e = 6371000
 output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
 #STARTING SC locations 
-"""
+
 sc_init = {
     "sc1": np.array([-27.0, 3.0, 0.5]) * R_e,
     "sc2": np.array([-26.0, 3.0, 1.5]) * R_e,
@@ -70,8 +70,9 @@ sc_init = {
     "sc6": np.array([5.96977399, -10.81345061, -1.07142857]) * R_e,
     "sc7": np.array([6.18031801, -10.94343409, -1.07142857]) * R_e,
 }
-flow = flow_type(sc_init, vg_v_file, b_field_file, start_time= 1440, end_time= 1444)
-t_ref = 1442
+"""
+flow = flow_type(sc_init, vg_v_file, b_field_file)
+t_ref = 1372
 pos_cols, B_cols= flow.steady_flow_velocity(t_ref=t_ref)
 
 df = flow.df
@@ -484,7 +485,7 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     
     return
 
-def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8):
+def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False):
     """
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
@@ -498,48 +499,56 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     err_vmax : Set max error for the absolute error (should also be implemented for relative error)
     output_dir : Output file directory for saving figure
     output_file : Output file name 
+    ref_plane_streak : Boolean that determines whether RBF slices are compared to the advected vlasiator points at the end time 
+                       or the planes the seed points at the time of measurement 
     
     TODO: Recenter RBF points to original points. Could be just set vlasiator grid for RBF grid
     Currently I guess SCs moving in the flux rope rest frame?!?
     """
     #Vlasitor DATA
- 
-    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
-    print(file)
-    vlsvfile = pt.vlsvfile.VlsvReader(file)
-    XY_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
-    XZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
-    YZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
+    
 
-    init_pts = np.vstack(list(sc_init.values()))
-    """
-    bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
-    file_readers = []
-    for t in df["Timeframe"].values:
-        file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
+    
+    if ref_plane_streak:
+        #measures at advected SC locations at the refrence time
+        bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
+        file_readers = []
+        for t in df["Timeframe"].values:
+            file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
 
-    injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
+        injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
 
-    time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
+        time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
 
-    streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
-                                                        points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
-    i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
-    j_rel = streakobj._time_to_idx(time = time)
-    ref_points = streakobj.M[:,i_rel,j_rel]
-    bary_vlas  = ref_points.mean(axis=0)                              
+        streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
+                                                            points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
+        i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
+        j_rel = streakobj._time_to_idx(time = time)
+        ref_points = streakobj.M[:,i_rel,j_rel]
+        bary_vlas  = ref_points.mean(axis=0)                              
 
-    L_vlas = L_Re*R_e
-                             
-    x = np.linspace(bary_vlas[0]-L_vlas, bary_vlas[0]+L_vlas, nx)
-    y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
-    z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
-    init_pts = ref_points
-       
-    XY_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
-    XZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
-    YZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
-    """
+        L_vlas = L_Re*R_e
+                                
+        x = np.linspace(bary_vlas[0]-L_vlas, bary_vlas[0]+L_vlas, nx)
+        y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
+        z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
+        init_pts = ref_points
+        
+        XY_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
+        XZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
+        YZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
+        
+    else:
+        #Samples at seed points coordinates at the measurement time
+        file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
+        print(file)
+        vlsvfile = pt.vlsvfile.VlsvReader(file)
+        XY_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
+        XZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
+        YZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
+
+        init_pts = np.vstack(list(sc_init.values()))
+        
     vlas_planes = [XY_vlas, XZ_vlas, YZ_vlas]
     
     #RBF DATA
@@ -557,7 +566,6 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     YZ_rbf = sample_slice(ys, zs, bary[0], "yz", nx, ny)
     
     rbf_planes = [XY_rbf,XZ_rbf,YZ_rbf]
-
 
     fig, axes = plt.subplots(3,3,figsize = (13,11), constrained_layout=True)
     fig.dpi = 500
@@ -586,8 +594,8 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
 
         #Component naming here wrong but makes no difference with absolute error
         Pr, Qr, Bxr, Byr, Bzr = rbf_plane
-        Pv, Qv, Bxv, Byv, Bzv = vlas_plane     
-        
+        Pv, Qv, Bxv, Byv, Bzv = vlas_plane    
+
         dBx = Bxr - Bxv
         dBy = Byr - Byv
         dBz = Bzr - Bzv
@@ -627,7 +635,20 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         else:
             v_v = init_pts[:,0]
             v_r = cluster[:,0]
+
+        def scatter_mask(u,v, P, Q):
+            xmin, xmax = np.min(P), np.max(P)
+            ymin, ymax = np.min(Q), np.max(Q)
+
+            #masking the points such that they are shown only
+            # if theyre within the grid
+            mask = (u>= xmin)&(u<= xmax)&(v>=ymin)&(v<=ymax)
+
+            return u[mask], v[mask]
         
+        u_v, v_v = scatter_mask(u_v, v_v, Pv, Qv)
+        u_r, v_r = scatter_mask(u_r, v_r, Pr, Qr)
+
         cbar = fig.colorbar(cont_0, ax=axes[0,i], orientation="vertical", shrink = 0.8)
         cbar.set_label(f"$B_{lab3}$")
         axes[0,i].scatter(u_v, v_v, c="k", s=clus_size, label="spacecraft")
@@ -667,7 +688,6 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         axes[2,i].set_aspect("equal")
         #axes[2,i].set_title(title)
         axes[2,0].legend(loc="upper right",fontsize="small")
-    
     sm = mpl.cm.ScalarMappable(cmap="viridis",
                             norm=norm)
 
@@ -901,5 +921,7 @@ if __name__ == "__main__":
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:
     #plot_rbf_slices(time=1360, output_dir="./")
-    plot_vlas_RBF_error(time=1442, output_dir="./", output_file="vlas_rbf_reconstruction_ref_time_1442s_time_1442_constrained_2s")
+    time = 1442
+    output_dir = "/home/leeviloi/fluxrope_thesis/timeseries_magnetopause/time_ref_1452_only_fwd/"
+    #plot_vlas_RBF_error(time=time, output_dir=output_dir, output_file=f"vlas_rbf_reconstruction_ref_time_1452s_tau_time_{time}s", ref_plane_streak= True)
    
