@@ -5,7 +5,7 @@
 #https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2023EA003369
 #Specifically timeseries reconstruction of FHA run between 1340-1372s
 #Determined Bulk velocity from 4 outside spacecraft average to avoid bias of inner tetrahedron. 
-#Timeseries start when spacecrafts come in contact with flux rope structure and ends when last spacecraft loses contact
+#Timeseries starts when spacecrafts come in contact with flux rope structure and ends when last spacecraft loses contact
 
 
 import numpy as np
@@ -21,18 +21,6 @@ import analysator as pt; print(pt.__file__)
 import scipy
 from flow_type import flow_type
 
-"""
-#SC1-4 overall means (from 1353 onwards):
-vg_v_x = -884632.1570458194
-vg_v_y = -332263.0899893005
-vg_v_z = 165187.1091635656
-"""
-"""
-#SC1-4 overall means pre 1353:
-vg_v_x = -544078.8175128276
-vg_v_y = -181801.77131761858
-vg_v_z = 121311.91965101559
-"""
 
 #Shared info
 vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"

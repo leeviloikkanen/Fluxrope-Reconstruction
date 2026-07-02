@@ -33,6 +33,22 @@ class flow_type:
     #THESE ARE TEMPORAL --> SPATIAL TRANSITIONS 
     #LOGIC OF FIRST TWO IS FLYING SC THROUGH STATIC STRUCTURE
     def static_bulk_velocity(self):
+        """
+        
+        Some possibly usable bulk times for magnetotail fluxrope
+
+        #SC1-4 overall means (from 1353 onwards):
+        vg_v_x = -884632.1570458194
+        vg_v_y = -332263.0899893005
+        vg_v_z = 165187.1091635656
+        """
+        """
+        #SC1-4 overall means pre 1353:
+        vg_v_x = -544078.8175128276
+        vg_v_y = -181801.77131761858
+        vg_v_z = 121311.91965101559
+        """
+
         #SC1-4 overall mean:
         #SC1-4 is the outer tetrahedron and likely good approximation of bulk velocity
         #as is not over weighted by the inner
