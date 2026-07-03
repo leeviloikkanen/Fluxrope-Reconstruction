@@ -60,7 +60,7 @@ sc_init = {
 }
 """
 flow = flow_type(sc_init, vg_v_file, b_field_file)
-t_ref = 1372
+t_ref = 1360
 pos_cols, B_cols= flow.steady_flow_velocity(t_ref=t_ref)
 
 df = flow.df
@@ -905,6 +905,9 @@ if __name__ == "__main__":
     #for time in range(1351,1361,3): 
 
     #    plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}_cutoff.png")
+    from export_rbf import export_rbf_vtk
+
+    export_rbf_vtk(df, rbf, included_pos_cols, output_path="./rbf_reconstruction_3D_errors_t_ref=1360.vts", use_convex_hull=True,export_sc_positions=False, t_ref = 1360)
 
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:

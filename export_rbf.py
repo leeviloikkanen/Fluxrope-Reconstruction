@@ -2,26 +2,25 @@
 Script to extract the RBF interpolation recontruction domain
 The data is exported in to a VTK structured grid which can be view in visualation softwares
 such as VisIt, Paraview or Blender (with VTK plugin).
-TODO: add ability to export more variables. 
+TODO: add ability to export more variables. meaning probably like point-wise error or such
 """
 import numpy as np
 import vtk
 from vtk.util import numpy_support
 from scipy.spatial import ConvexHull
 import trimesh
+import analysator as pt
 
 
 R_E = 6.371e6  
 
-
 def export_rbf_vtk(df,rbf,included_pos_cols,ny=100,nz=100,nx=200,padding_Re=0.5,output_path="rbf_reconstruction.vts",
-                   export_sc_positions=True,use_convex_hull=False,hull_distance_Re=0.5,include_inside=True,):
+                   export_sc_positions=True,use_convex_hull=False,hull_distance_Re=0.5,include_inside=True, t_ref = 1372):
 
     pad = padding_Re * R_E
     T = len(df)
     N_sc = len(included_pos_cols) // 3
 
- 
     pos = df[included_pos_cols].to_numpy().reshape(T, N_sc, 3)
     
     #Defining grid
@@ -88,28 +87,57 @@ def export_rbf_vtk(df,rbf,included_pos_cols,ny=100,nz=100,nx=200,padding_Re=0.5,
     B_vals = np.full((len(pts_xyz),3),0.0,dtype=np.float64)
 
     B_vals[keep_mask] = rbf(pts_xyz[keep_mask])
+
+     #Point-wise error
+
+    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t_ref}.vlsv"
+    vlsvfile = pt.vlsvfile.VlsvReader(file)
+    B_vlas = vlsvfile.read_interpolated_variable("vg_b_vol", pts_xyz[keep_mask])
+    abs_error = np.linalg.norm((B_vlas-B_vals[keep_mask]), axis = 1)
+    B_vlas_mag = np.linalg.norm(B_vlas, axis = 1)
+    
+    error = 100*abs_error/B_vlas_mag
                   
     B_vals = np.ascontiguousarray(B_vals)
+
+    N = len(pts_xyz)
+    abs_error_full = np.full(N, -1)
+    rel_error_full = np.full(N, -1)
+    
+    abs_error_full[keep_mask] = abs_error
+    rel_error_full[keep_mask] = error
+    
 
     #WRITING VTK
     grid = vtk.vtkStructuredGrid()
     grid.SetDimensions(nx, ny, nz)
 
-  
     vtk_pts = vtk.vtkPoints()
     vtk_pts.SetData(
         numpy_support.numpy_to_vtk(pts_xyz, deep=True, array_type=vtk.VTK_DOUBLE)
     )
     grid.SetPoints(vtk_pts)
 
+    #RBF MAGNETIC FIELD VECTORS
     B_arr = numpy_support.numpy_to_vtk(B_vals, deep=True, array_type=vtk.VTK_DOUBLE)
     B_arr.SetName("B_rbf")
     grid.GetPointData().SetVectors(B_arr)  
 
+    #RBF MAGNETIC FIELD MAGNITUDE
     B_mag = np.ascontiguousarray(np.linalg.norm(B_vals, axis=1))
     B_mag_arr = numpy_support.numpy_to_vtk(B_mag, deep=True, array_type=vtk.VTK_DOUBLE)
     B_mag_arr.SetName("B_rbf_mag")
-    grid.GetPointData().SetScalars(B_mag_arr)
+    grid.GetPointData().AddArray(B_mag_arr)
+
+    #Relative error 
+    rel_error_arr = numpy_support.numpy_to_vtk(np.ascontiguousarray(rel_error_full),deep = True, array_type = vtk.VTK_DOUBLE)
+    rel_error_arr.SetName("point-wire_error")
+    grid.GetPointData().AddArray(rel_error_arr)
+
+    #Absolute error
+    abs_error_arr = numpy_support.numpy_to_vtk(np.ascontiguousarray(abs_error_full), deep = True, array_type = vtk.VTK_DOUBLE)
+    abs_error_arr.SetName("Abs_error")
+    grid.GetPointData().AddArray(abs_error_arr)
 
     writer = vtk.vtkXMLStructuredGridWriter()
     writer.SetFileName(output_path)
@@ -128,13 +156,14 @@ def _export_sc_polydata(pos: np.ndarray, vts_path: str, df) -> None:
     """
     Function to extract alongside reconstruction domain the virtual spacecraft trajectories 
     that define the domain
+    TODO Adapt to different refrence time ballistic trajectories
     """
     T, N_sc, _ = pos.shape
     t_0 = df["TimeFrame"][0]
     vtp_path = vts_path.replace(
         ".vts",
-        "_sc_positions.vtp"
-    )
+        "_sc_positions.vtp")
+    
     poly = vtk.vtkPolyData()
     sc_pts_flat = np.ascontiguousarray(pos.reshape(-1, 3))
     vtk_pts = vtk.vtkPoints()
