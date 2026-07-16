@@ -10,7 +10,7 @@ from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
 import scipy
-
+#TODO needs sc_inits
 
 def E_func(eps, centers, values, kernel):
     #O(N³) so scales poorly with number of points

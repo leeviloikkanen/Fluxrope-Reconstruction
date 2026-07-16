@@ -5,8 +5,6 @@ into the time varying RBF reconstruction.
 
 import numpy as np
 import pandas as pd
-import analysator as pt
-import scipy
 
 class flow_type:
     def __init__(self, sc_init, velocity_path, B_field_path, start_time = None, end_time = None):

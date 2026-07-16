@@ -8,8 +8,15 @@ import numpy as np
 
 from sampling import sample_slice, sample_slice_any_plane, sample_slice_vlas, sample_slice_vlas_coords
 import sys
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from scipy.stats import wasserstein_distance
+import scipy
+
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
 import analysator as pt; print(pt.__file__)
+
+#TODO needs sc_inits and rbf 
 
 def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
     """

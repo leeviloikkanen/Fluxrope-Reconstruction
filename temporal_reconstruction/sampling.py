@@ -10,9 +10,10 @@ import pandas as pd
 import sys
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
 import analysator as pt; print(pt.__file__)
+#TODO Needs sc_inits
 
 
-def sample_slice(coord1, coord2, const_coord, plane, nx, ny):
+def sample_slice(coord1, coord2, const_coord, plane, nx, ny, rbf):
     """
     Samples a slice of the RBF reconstruction at give coordinates
     :kword coord1: array of x coordinates
