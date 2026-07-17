@@ -159,6 +159,10 @@ def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, sc
     with open(output_filename, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
+
+def streakline_B(start_time, end_time, points = points, ):
+    
+    return 
 #[6,-11,-1],[10,-5,-1]
 #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
 Timeseries(start_time=1400,end_time=1500)
