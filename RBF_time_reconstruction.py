@@ -59,8 +59,10 @@ sc_init = {
     "sc7": np.array([6.18031801, -10.94343409, -1.07142857]) * R_e,
 }
 
-flow = flow_type(sc_init, vg_v_file, b_field_file)
-t_ref = 1442
+flow = flow_type(sc_init, vg_v_file, b_field_file, start_time=1420, end_time=1452)
+
+t_ref = 1452
+#t_ref = 1372
 pos_cols, B_cols= flow.steady_flow_velocity(t_ref=t_ref)
 
 df = flow.df
@@ -164,8 +166,6 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour", kernel = "mult
     )
 
     return rbf, included_pos_cols, included_B_cols, included_sc
-
-
 
 rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data()
 
@@ -906,14 +906,8 @@ if __name__ == "__main__":
     streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
                                                         points_per = 10, method = "RK4", tracked_vars = ["vg_b_vol"])
     """
-    #for time in range(1351,1361,3): 
-
-    #    plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}_cutoff.png")
-
-    #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
-    #for time in times:
-    #plot_rbf_slices(time=1360, output_dir="./")
-    time = 1442
-    output_dir = "/home/leeviloi/fluxrope_thesis/timeseries_magnetopause/z=-1/"
-    plot_vlas_RBF_error(time=time, output_dir=output_dir, output_file=f"vlas_rbf_reconstruction_ref_time_1442s_tau_time_{time}s", ref_plane_streak= False)
-   
+    #output_dir = "/home/leeviloi/fluxrope_thesis/timeseries_magnetopause/perfect_streakline_measured_B/"
+    output_dir = "./"
+    time = 1442   
+    plot_vlas_RBF_error(time=time, output_dir=output_dir, output_file=f"vlas_rbf_reconstruction_ref_time_1452s_tau_time_{time}s_perfect_streak", ref_plane_streak= False)
+    

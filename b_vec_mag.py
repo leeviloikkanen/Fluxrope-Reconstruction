@@ -4,7 +4,9 @@
 #Virtual spacecraft locations in meters.
 #
 
-import analysator as pt
+import sys
+sys.path.insert(0, "/home/leeviloi/analysator-dev")
+import analysator as pt; print(pt.__file__)
 import numpy as np
 import csv
 from rotation_matrix import get_sc_locations
@@ -32,6 +34,7 @@ sc7 = np.array([-26.85714286, 2.87628209, 0.42857143]) * R_e
 
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 """
+#Magnetopause z=-1 58 deg (45 radian)
 sc1 = np.array([6.0, -11.0, -1.0]) * R_e
 sc2 = np.array([6.52532199, -10.14909648, 0.0]) * R_e
 sc3 = np.array([5.78841792, -9.69415429, -1.5]) * R_e
@@ -160,20 +163,71 @@ def staticTime(start_point,end_point,points = points,time_step = 1432, N=100, sc
         writer = csv.writer(csvfile)
         writer.writerows(data)
 
-def streakline_B(start_time, end_time, points = points, ):
-    
-    return 
-#[6,-11,-1],[10,-5,-1]
-#staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
-Timeseries(start_time=1400,end_time=1500)
-#High res fly through:[6,-6.5,-2.6],[10.327,-6.5,-2.6]
-"""
-scales = np.linspace(0.5,1.9,8)
-print(scales)
+def streakline_B(start_time, end_time, points = points, file_path = None):
+    bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
+    file_readers = []
+    for t in range(start_time, end_time+1):
+        file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
 
-#GIVE angle for rotation in RADIANS!
-for scale in scales:
-    points_scl = get_sc_locations(rotation=45,translation=[6,-11,-1],in_scl=5,scale_constellation=scale)
-    points_scl = points_scl*R_e
-    staticTime([6,-11,-1],[10,-5,-1],points=points_scl,N=100,scale=scale)
-"""
+    time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
+
+    streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = points, direction = "+",dt_step = 0.1, 
+    
+                                                      points_per = 1, method = "RK4")
+
+    N = len(points)
+    sc_keys = [f"sc{i+1}" for i in range(N)]
+    #streakline time step file:
+    vlsvfile = file_readers[-1]
+    streaklines = []
+    vg_Bs = []
+    for idx in range(N):
+        #Reading magnetic field data for each seed point along the streakline
+        streakline = streakobj.get_streakline(idx, end_time)
+        vg_B = vlsvfile.read_interpolated_variable("vg_b_vol", streakline)
+
+        streaklines.append(streakline)
+        vg_Bs.append(vg_B)
+
+    n_steps = min(s.shape[0] for s in streaklines)  
+
+    header = ['Position_Index', 'Timeframe']
+    for sc in sc_keys:
+        header.extend([f'{sc}_pos_x', f'{sc}_pos_y', f'{sc}_pos_z',
+                        f'{sc}_vg_B_x', f'{sc}_vg_B_y', f'{sc}_vg_B_z'])
+
+    data = [header]
+
+    for j in range(n_steps):
+        row = [j, start_time+j]
+        for idx in range(N):
+            pos = streaklines[idx][j]
+            B = vg_Bs[idx][j]
+            row.extend(pos)
+            row.extend(B)
+        data.append(row)
+
+    if file_path is None:
+        file_path = f"./streakline_data/streakline_B_magnetopause_{start_time}_{end_time}.csv"
+
+    with open(file_path, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(data)
+
+    return 
+if __name__ == "__main__":
+    #[6,-11,-1],[10,-5,-1]
+    #staticTime(start_point=[6,-11,-1],end_point=[10,-5,-1], N=200)
+    #Timeseries(start_time=1400,end_time=1500)
+    #High res fly through:[6,-6.5,-2.6],[10.327,-6.5,-2.6]
+    """
+    scales = np.linspace(0.5,1.9,8)
+    print(scales)
+
+    #GIVE angle for rotation in RADIANS!
+    for scale in scales:
+        points_scl = get_sc_locations(rotation=45,translation=[6,-11,-1],in_scl=5,scale_constellation=scale)
+        points_scl = points_scl*R_e
+        staticTime([6,-11,-1],[10,-5,-1],points=points_scl,N=100,scale=scale)
+    """
+    streakline_B(1420, 1452, points, file_path= "./streakline_vlas_B_magnetopause_1420_1452.csv")
