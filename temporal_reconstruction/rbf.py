@@ -10,7 +10,6 @@ from scipy.interpolate import RBFInterpolator
 from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
 import scipy
-#TODO needs sc_inits
 
 def E_func(eps, centers, values, kernel):
     #O(N³) so scales poorly with number of points
@@ -58,7 +57,7 @@ def find_eps(centers, values, kernel, style = "log", start = -14, end = 0, Num =
     return min_eps, min
 
 #MAIN RBF reconstruction function 
-def RBF_missing_data(missing_sc = None, eps_method = "neighbour", kernel = "multiquadric"):
+def RBF_missing_data(df, sc_names, missing_sc = None, eps_method = "neighbour", kernel = "multiquadric"):
     #Modify to select only sc that aren't in missing_sc then just same things as below: 
 
     if missing_sc is None:
