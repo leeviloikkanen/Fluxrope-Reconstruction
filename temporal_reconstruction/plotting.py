@@ -16,9 +16,12 @@ import scipy
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
 import analysator as pt; print(pt.__file__)
 
-#TODO needs sc_inits and rbf 
+from config import Config
 
-def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
+R_e = 6371000
+
+
+def plot_vlas_slices(time, cfg:Config, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, save = True):
     """
     Plotting vlasiators slices at the barycenter of the spacecraft constellations
 
@@ -34,11 +37,11 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
     print(file)
     vlsvfile = pt.vlsvfile.VlsvReader(file)
 
-    XY = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
-    XZ = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
-    YZ = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
+    XY = sample_slice_vlas(cfg, vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
+    XZ = sample_slice_vlas(cfg, vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
+    YZ = sample_slice_vlas(cfg, vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
 
-    init_pts = np.vstack(list(sc_init.values()))
+    init_pts = np.vstack(list(cfg.sc_init.values()))
     """
     bulkpath_FHA = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
     file_readers = []
@@ -112,7 +115,7 @@ def plot_vlas_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, ou
 
     return    
 
-def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None):
+def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None):
     """
     Plots the RBF reconstruction at the bary center of the spacecraft constellation
 
@@ -133,9 +136,9 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     zs = np.linspace(bary[2]-L_m, bary[2]+L_m, ny)
 
     #Sample the coordinates 
-    XY = sample_slice(xs, ys, bary[2], "xy", nx, ny)
-    XZ = sample_slice(xs, zs, bary[1], "xz", nx, ny)
-    YZ = sample_slice(ys, zs, bary[0], "yz", nx, ny)
+    XY = sample_slice(xs, ys, bary[2], "xy", rbf=rbf, nx = nx, ny = ny)
+    XZ = sample_slice(xs, zs, bary[1], "xz", rbf=rbf, nx = nx, ny = ny)
+    YZ = sample_slice(ys, zs, bary[0], "yz", rbf=rbf, nx = nx, ny = ny)
 
     # Plot
     fig, axs = plt.subplots(1, 3, figsize=(15,5), constrained_layout=True)
@@ -181,7 +184,7 @@ def plot_rbf_slices(time, nx = 200, ny = 200, L_Re = 1.2, output_dir = None, out
     
     return
 
-def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False):
+def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False):
     """
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
@@ -212,7 +215,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         for t in df["Timeframe"].values:
             file_readers.append(pt.vlsvfile.VlsvReader(bulkpath_FHA+"bulk1.{}.vlsv".format(str(int(t)).zfill(7)),indexer="dict"))
 
-        injection_points = np.array([sc_init[f"{sc}"] for sc in included_sc])
+        injection_points = np.array([cfg.sc_init[f"{sc}"] for sc in included_sc])
 
         time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
 
@@ -239,11 +242,11 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
         print(file)
         vlsvfile = pt.vlsvfile.VlsvReader(file)
-        XY_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
-        XZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
-        YZ_vlas = sample_slice_vlas(vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
+        XY_vlas = sample_slice_vlas(cfg = cfg, vlsvfile = vlsvfile, plane = "xy", nx=nx, ny=ny, L_Re=L_Re)
+        XZ_vlas = sample_slice_vlas(cfg = cfg, vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
+        YZ_vlas = sample_slice_vlas(cfg = cfg, vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
 
-        init_pts = np.vstack(list(sc_init.values()))
+        init_pts = np.vstack(list(cfg.sc_init.values()))
         
     vlas_planes = [XY_vlas, XZ_vlas, YZ_vlas]
     
@@ -257,9 +260,11 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
     ys = np.linspace(bary[1]-L_m, bary[1]+L_m, ny)
     zs = np.linspace(bary[2]-L_m, bary[2]+L_m, ny)
 
-    XY_rbf = sample_slice(xs, ys, bary[2], "xy", nx, ny)
-    XZ_rbf = sample_slice(xs, zs, bary[1], "xz", nx, ny)
-    YZ_rbf = sample_slice(ys, zs, bary[0], "yz", nx, ny)
+    #Sample the coordinates 
+    XY_rbf = sample_slice(xs, ys, bary[2], "xy", rbf=rbf, nx = nx, ny = ny)
+    XZ_rbf = sample_slice(xs, zs, bary[1], "xz", rbf=rbf, nx = nx, ny = ny)
+    YZ_rbf = sample_slice(ys, zs, bary[0], "yz", rbf=rbf, nx = nx, ny = ny)
+
     
     rbf_planes = [XY_rbf,XZ_rbf,YZ_rbf]
 
@@ -415,7 +420,7 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
         plt.close()
     return
 
-def Wasserstein_Hull(time, type = "filled", save = True, buffer = 0, error_cutoff = 20, info = True, output_dir =None, output_file =None):
+def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save = True, buffer = 0, error_cutoff = 20, info = True, output_dir =None, output_file =None):
     """
     Changes to be made: with time determine RBF sc locations, but
     have vlasiator stay in place and just change file time
@@ -427,7 +432,7 @@ def Wasserstein_Hull(time, type = "filled", save = True, buffer = 0, error_cutof
     vlsvfile = pt.vlsvfile.VlsvReader(file)
     
     #Vlasitor convex hull from initial spacecraft locations
-    init_pts = np.vstack(list(sc_init.values()))
+    init_pts = np.vstack(list(cfg.sc_init.values()))
     hull_init = ConvexHull(init_pts)
     dela_init = Delaunay(init_pts[hull_init.vertices])
 
@@ -517,7 +522,7 @@ def Wasserstein_Hull(time, type = "filled", save = True, buffer = 0, error_cutof
 
     return W_rels, round(fraction,3)
 
-def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file = None):
+def plot_Wass_time(df, save =True, error_cutoff = 20, flow_static_vel = None, output_dir = None, output_file = None):
 
     """
     Convex hull at time index and calculate Wasserstein distance from that. 
@@ -532,7 +537,7 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
     times = df["Timeframe"]
     W_x,W_y,W_z,error = [], [], [], []
     for t in times:
-        data, error_frac  = Wasserstein_Hull(t, save = False,error_cutoff=error_cutoff)
+        data, error_frac  = Wasserstein_Hull(t, save = False, error_cutoff=error_cutoff)
         W_x.append(data[0])
         W_y.append(data[1])
         W_z.append(data[2])
@@ -557,8 +562,8 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
         ax[1].set_ylabel(r"Point-wise error")
         ax[1].set_title(f"Fraction of points with error <{error_cutoff}%")
         ax[1].grid(True, alpha=0.3)
-        if flow.static_vel is not None:
-            fig.suptitle(f"Bulk velocity: ({np.round(flow.static_vel[0],1)},{np.round(flow.static_vel[1],1)},{np.round(flow.static_vel[2],1)}) m/s")
+        if flow_static_vel is not None:
+            fig.suptitle(f"Bulk velocity: ({np.round(flow_static_vel[0],1)},{np.round(flow_static_vel[1],1)},{np.round(flow_static_vel[2],1)}) m/s")
         else:
             fig.suptitle("Dynamic Bulk velocity")
         fig.tight_layout()
@@ -567,8 +572,8 @@ def plot_Wass_time(save =True, error_cutoff = 20, output_dir = None, output_file
             output_dir = "~/"
 
         if output_file == None:
-            if flow.static_vel is not None:
-                output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(flow.static_vel[0]**2+flow.static_vel[1]**2+flow.static_vel[2]**2)}.png"
+            if flow_static_vel is not None:
+                output_file = f"Wasserstein_vs_Time+error_abs_bulk={np.sqrt(flow_static_vel[0]**2+flow_static_vel[1]**2+flow_static_vel[2]**2)}.png"
             else:
                 output_file = f"Wasserstein_vs_Time+error_abs_dynamic.png"
         

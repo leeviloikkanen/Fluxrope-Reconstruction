@@ -57,3 +57,9 @@ rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data(df=df, 
 
 
 
+import plotting
+
+time = 1440
+
+plotting.plot_vlas_RBF_error(time = 1440, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
+                             included_sc=included_sc)

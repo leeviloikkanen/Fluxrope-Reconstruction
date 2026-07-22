@@ -10,10 +10,10 @@ import pandas as pd
 import sys
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
 import analysator as pt; print(pt.__file__)
-#TODO Needs sc_inits
+from config import Config
+R_E = 6371000
 
-
-def sample_slice(coord1, coord2, const_coord, plane, nx, ny, rbf):
+def sample_slice(coord1, coord2, const_coord, plane, rbf, nx = 200, ny = 200):
     """
     Samples a slice of the RBF reconstruction at give coordinates
     :kword coord1: array of x coordinates
@@ -54,7 +54,7 @@ def sample_slice(coord1, coord2, const_coord, plane, nx, ny, rbf):
     else:
         raise "Invalid Plane, Options: xy, xz, yz"     
 
-def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny = 200,L_Re = 1.2):
+def sample_slice_vlas(cfg: Config, vlsvfile = None, plane = None, time = None, nx = 200, ny = 200,L_Re = 1.2):
     
     #file
     if time != None:
@@ -67,7 +67,7 @@ def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny =
         raise "Provide vlasiator file or time"
     if plane == None:
         raise "Provide plane to slice"
-    init_pts = np.vstack(list(sc_init.values()))
+    init_pts = np.vstack(list(cfg.sc_init.values()))
     bary = init_pts.mean(axis=0)
    
     """
@@ -76,7 +76,7 @@ def sample_slice_vlas(vlsvfile = None, plane = None, time = None, nx = 200, ny =
     ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
     Out of plane component will always be last
     """
-    L_m = L_Re*R_e
+    L_m = L_Re*R_E
     if plane == "xy":
         coord1 = np.linspace(bary[0]-L_m,bary[0]+L_m,nx)
         coord2 = np.linspace(bary[1]-L_m,bary[1]+L_m,ny)
