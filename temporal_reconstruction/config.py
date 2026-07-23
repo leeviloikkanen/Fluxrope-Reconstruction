@@ -34,6 +34,11 @@ class Config:
 
 def tail_config():
     """
+    Configuration for a magnetotail fluxrope that passes over the SC constellation between 
+    1340-1372s in the Vlasiator FHA simulation run.
+
+    The constellation is (near) alinged with the flow direction though the flux rope axis is 
+    (near) perpendicular direction of travel
     """
     return Config(
         vg_v_file="./temporal_reconstruction/data/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv",
@@ -54,7 +59,11 @@ def tail_config():
 
 def magnetopause_config():
     """
-    """
+    Configuration for dayside magnetopause fluxrope that passes over the SC constellation between
+    1400-1500s in the Vlasiator FHA simulation run. 
+
+    The constellation and flux rope axis are a both (near) parrallel to the flow direction.
+    """ 
     return Config(
         vg_v_file="./temporal_reconstruction/data/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv",
         b_field_file="./temporal_reconstruction/data/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv",

@@ -112,17 +112,21 @@ def sample_slice_vlas(cfg: Config, vlsvfile = None, plane = None, time = None, n
     else:
         raise "Invalid Plane, Options: xy, xz, yz"  
 
-def sample_slice_vlas_coords(time, coord1, coord2, const_coord, plane, nx = 200, ny = 200):
+def sample_slice_vlas_coords(coord1, coord2, const_coord, plane, time = None, vlsvfile = None, nx = 200, ny = 200):
     """
     main thing to note about this function is that the output
     order of coordinates is dependant on chosen plane
     ex. yz plane will output coordinates as Y, Z, By, Bz, Bx
     Out of plane component will always be last
     """
-    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
-    print(file)
-    vlsvfile = pt.vlsvfile.VlsvReader(file)
-    
+    if time != None:
+            file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
+            print(file)
+            vlsvfile = pt.vlsvfile.VlsvReader(file)
+    elif vlsvfile != None:
+        vlsvfile = vlsvfile
+    else:
+        raise "Provide vlasiator file or time"
 
     if plane == "xy":
         X, Y = np.meshgrid(coord1, coord2)                 

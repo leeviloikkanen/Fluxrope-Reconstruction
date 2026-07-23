@@ -220,7 +220,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
 
         streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
-                                                            points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
+                                                            points_per = 1, method = "RK4")
         i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
         j_rel = streakobj._time_to_idx(time = time)
         ref_points = streakobj.M[:,i_rel,j_rel]
@@ -232,10 +232,14 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         y = np.linspace(bary_vlas[1]-L_vlas, bary_vlas[1]+L_vlas, ny)
         z = np.linspace(bary_vlas[2]-L_vlas, bary_vlas[2]+L_vlas, ny)   
         init_pts = ref_points
-        
-        XY_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, y, bary_vlas[2], "xy")
-        XZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], x, z, bary_vlas[1], "xz")
-        YZ_vlas = sample_slice_vlas_coords(df["Timeframe"].iloc[-1], y, z, bary_vlas[0], "yz")
+
+        ref_time = df["Timeframe"].iloc[-1]
+        file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{ref_time}.vlsv"
+        print(file)
+        vlsvfile = pt.vlsvfile.VlsvReader(file)
+        XY_vlas = sample_slice_vlas_coords(x, y, bary_vlas[2], "xy", vlsvfile=vlsvfile)
+        XZ_vlas = sample_slice_vlas_coords(x, z, bary_vlas[1], "xz", vlsvfile=vlsvfile)
+        YZ_vlas = sample_slice_vlas_coords(y, z, bary_vlas[0], "yz", vlsvfile=vlsvfile)
         
     else:
         #Samples at seed points coordinates at the measurement time
@@ -404,7 +408,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         fig.text(0.5, y, txt, ha="center", va="center", fontsize=20)
 
     #fig.tight_layout()
-    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time {t_ref}, release time = {time}s", fontsize = 20)
+    fig.suptitle(f"Comparison of Vlasiator and RBF reconstruction at time {cfg.t_ref}, release time = {time}s", fontsize = 20)
     if save:
         if output_dir == None:
             output_dir = "~/"

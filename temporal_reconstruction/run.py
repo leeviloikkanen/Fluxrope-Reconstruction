@@ -34,7 +34,7 @@ from config import tail_config, magnetopause_config
 cfg = tail_config()
 
 #make changes to config file variables if needed
-#cfg.t_ref = 1420
+cfg.t_ref = 1360
 
 #Load the data and move the centers 
 
@@ -46,8 +46,9 @@ flow = flow_type(sc_init=cfg.sc_init, velocity_path=cfg.vg_v_file, B_field_path=
 pos_cols, B_cols = flow.steady_flow_velocity(t_ref=cfg.t_ref)
 
 df = flow.df
-df.v = flow.df_v
+df_v = flow.df_v
 
+#Build the interpolator
 from rbf import RBF_missing_data
 
 missing_sc = None
@@ -56,10 +57,10 @@ rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data(df=df, 
                                                                          eps_method=cfg.rbf_eps_method, kernel=cfg.rbf_kernel)
 
 
-
+#Plot the data
 import plotting
 
 time = 1440
 
-plotting.plot_vlas_RBF_error(time = 1440, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
-                             included_sc=included_sc)
+plotting.plot_vlas_RBF_error(time = 1360, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
+                             included_sc=included_sc, output_dir="./", ref_plane_streak=False, output_file="test_no_streak.png")

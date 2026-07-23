@@ -7,10 +7,11 @@ Ease of modifying/changing technique in the future
 import numpy as np
 import pandas as pd
 from scipy.interpolate import RBFInterpolator
-from scipy.stats import wasserstein_distance
 from sklearn.neighbors import NearestNeighbors
 import scipy
 
+
+#LOOCV METHOD
 def E_func(eps, centers, values, kernel):
     #O(N³) so scales poorly with number of points
     N_pts = np.shape(centers)[0]
