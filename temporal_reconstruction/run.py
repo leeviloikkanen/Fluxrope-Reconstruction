@@ -34,8 +34,11 @@ from config import tail_config, magnetopause_config
 cfg = tail_config()
 
 #make changes to config file variables if needed
-cfg.t_ref = 1360
 
+cfg.start_time = 1340
+cfg.end_time = 1372
+cfg.t_ref = 1360
+#cfg.rbf_eps_method = "LOOCV"
 #Load the data and move the centers 
 
 from flow_type import flow_type
@@ -60,7 +63,8 @@ rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data(df=df, 
 #Plot the data
 import plotting
 
-time = 1440
+time = 1360
 
-plotting.plot_vlas_RBF_error(time = 1360, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
-                             included_sc=included_sc, output_dir="./", ref_plane_streak=False, output_file="test_no_streak.png")
+plotting.plot_vlas_RBF_error(time = time, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
+                             included_sc=included_sc, output_dir= "/home/leeviloi/fluxrope_thesis/timeseries_tail/dataset_constrained/centered_at_1360/", ref_plane_streak=False, 
+                             output_file=f"RBF_recon_data_{cfg.start_time}-{cfg.end_time}s_t_ref_{cfg.t_ref}_tau_{time}_eps_inv.png")

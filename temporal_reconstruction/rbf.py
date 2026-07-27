@@ -36,7 +36,7 @@ def E_func(eps, centers, values, kernel):
 
 #Slow own minimizatin function. Probably better to try use something like 
 #scipy.optimization.minimize. Values very small tho
-def find_eps(centers, values, kernel, style = "log", start = -14, end = 0, Num = 20):
+def find_eps(centers, values, kernel, style = "log", start = -12, end = -2, Num = 100):
     #Simple function to loop through epsilon values to find best one
     if style == "log":
         slots = np.logspace(start, end, Num)
@@ -78,13 +78,14 @@ def RBF_missing_data(df, sc_names, missing_sc = None, eps_method = "neighbour", 
 
     if eps_method == "neighbour":
         epsilon = np.median(dists[:, 1])
+        epsilon = 1/epsilon
     elif eps_method == "LOOCV":
         #This is very slow and seemingly choise of epsilon >1e-3 makes little difference 
         #run once and the manually set found epsilon.
         epsilon, _ = find_eps(centers_inc,values_inc, kernel)
     
 
-    print(f"RBF epsilon (missing {missing_sc}) = {epsilon/1000:.3g} km")
+    print(f"RBF epsilon (missing {missing_sc}) = {epsilon:.3g}")
     
     #RBF interpolation
     rbf = RBFInterpolator(
