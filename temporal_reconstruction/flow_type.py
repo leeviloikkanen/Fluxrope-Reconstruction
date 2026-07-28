@@ -5,8 +5,6 @@ into the time varying RBF reconstruction.
 
 import numpy as np
 import pandas as pd
-import analysator as pt
-import scipy
 
 class flow_type:
     def __init__(self, sc_init, velocity_path, B_field_path, start_time = None, end_time = None):
@@ -130,7 +128,7 @@ class flow_type:
                         for sc in self.sc_init.keys()], [])
         return pos_cols, B_cols
     
-    def steady_flow_velocity_mean(self):
+    def steady_flow_velocity_mean(self, t_ref = None):
         sc_nums = range(1,len(self.sc_init)+1)
         v_x_cols = [f"vg_v_x_point{n}" for n in sc_nums]
         v_y_cols = [f"vg_v_y_point{n}" for n in sc_nums]

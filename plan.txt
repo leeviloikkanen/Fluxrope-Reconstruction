@@ -1,0 +1,5 @@
+Current goals: 
+    -Create the config file such that changing between setups is much easier
+    -Write run file such that the main script doesn't need to be touched
+    -The plotting, sampling and RBF building in different files
+    -config -> run -> everything else should be order of importance
