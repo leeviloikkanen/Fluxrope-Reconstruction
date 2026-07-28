@@ -591,3 +591,13 @@ def plot_Wass_time(df, save =True, error_cutoff = 20, flow_static_vel = None, ou
         plt.savefig(output_file)
 
     return 
+
+def Wasserstein_sphere(time, L_RE = 1.2, info = True, save = True):
+    """
+    Create sphere that encapsulates all necessary points at some barycenter along the streaklines
+    Calculate the two Wasserstein distances and if info calculate also the point-wise error with some cutoff
+    within the sphere. 
+    Plot the distributions of values 
+    return W_rels, Rel_error --> [W_rel_x, W_rel_y, W_rel_z], Rel_error 
+    """
+    return
