@@ -184,7 +184,8 @@ def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_
     
     return
 
-def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False):
+def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, 
+                        nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False, stream_color = True):
     """
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
@@ -201,12 +202,8 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
     ref_plane_streak : Boolean that determines whether RBF slices are compared to the advected vlasiator points at the end time 
                        or the planes the seed points at the time of measurement 
     
-    TODO: Recenter RBF points to original points. Could be just set vlasiator grid for RBF grid
-    Currently I guess SCs moving in the flux rope rest frame?!?
     """
     #Vlasitor DATA
-    
-
     
     if ref_plane_streak:
         #measures at advected SC locations at the refrence time
@@ -318,10 +315,13 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         #Vlasiator Plotting
         #
         cont_0 = axes[0,i].contourf(Pv,Qv,vlas_plane[-1], 30, cmap="coolwarm")
-        speed = np.hypot(vlas_plane[2], vlas_plane[3])
-        axes[0,i].streamplot(Pv, Qv, vlas_plane[2], vlas_plane[3],
-                    color=speed, cmap="magma", density=2, linewidth = 0.4)
-        
+        if stream_color:
+            speed = np.hypot(vlas_plane[2], vlas_plane[3])
+            axes[0,i].streamplot(Pv, Qv, vlas_plane[2], vlas_plane[3],
+                        color=speed, cmap="magma", density = 2, linewidth = 0.4)
+        else:
+            axes[0,i].streamplot(Pv, Qv, vlas_plane[2], vlas_plane[3],
+                                 color = "k", density = 2, linewidth = 0.4)    
         if lab1 == "X":             
             u_v = init_pts[:,0]
             u_r = cluster[:,0] 
@@ -368,9 +368,14 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         #RBF plotting
         #
         cont_1 = axes[1,i].contourf(Pr,Qr,rbf_plane[-1], 30, cmap="coolwarm")
-        speed = np.hypot(rbf_plane[2], rbf_plane[3])
-        axes[1,i].streamplot(Pr, Qr, rbf_plane[2], rbf_plane[3],
-                    color=speed, cmap="magma", density=2, linewidth = 0.4)
+        if stream_color:
+            speed = np.hypot(rbf_plane[2], rbf_plane[3])
+            axes[1,i].streamplot(Pr, Qr, rbf_plane[2], rbf_plane[3],
+                        color=speed, cmap="magma", density = 2, linewidth = 0.4)
+        else:
+            sp = axes[1,i].streamplot(Pr, Qr, rbf_plane[2], rbf_plane[3],
+                                color = "k", density = 2, linewidth = 0.4)
+            
         
         cbar = fig.colorbar(cont_1, ax=axes[1,i], orientation="vertical", shrink = 0.8)
         cbar.set_label(f"$B_{lab3}$")

@@ -55,7 +55,7 @@ df_v = flow.df_v
 from rbf import RBF_missing_data
 
 missing_sc = None
-#missing_sc = ["sc2","sc3","sc4"]
+#missing_sc = ["sc2"]
 rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data(df=df, sc_names=cfg.sc_names(), missing_sc=missing_sc,
                                                                          eps_method=cfg.rbf_eps_method, kernel=cfg.rbf_kernel)
 
@@ -66,5 +66,5 @@ import plotting
 time = 1360
 
 plotting.plot_vlas_RBF_error(time = time, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
-                             included_sc=included_sc, output_dir= "/home/leeviloi/fluxrope_thesis/timeseries_tail/dataset_constrained/centered_at_1360/", ref_plane_streak=False, 
+                             included_sc=included_sc, output_dir= "./", ref_plane_streak=False, 
                              output_file=f"RBF_recon_data_{cfg.start_time}-{cfg.end_time}s_t_ref_{cfg.t_ref}_tau_{time}_eps_inv.png")
