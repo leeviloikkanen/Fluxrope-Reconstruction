@@ -429,7 +429,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         plt.close()
     return
 
-def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save = True, buffer = 0, error_cutoff = 20, info = True, output_dir =None, output_file =None):
+def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save = True, buffer = 0, error_cutoff = 10, info = True, output_dir =None, output_file =None):
     """
     Changes to be made: with time determine RBF sc locations, but
     have vlasiator stay in place and just change file time
@@ -515,18 +515,18 @@ def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save 
             ax.legend()
             ax.grid(alpha=0.3)
 
-        fig.suptitle(f"Component distributions  t={time}s")
+            fig.suptitle(f"Component distributions  t={time}s")
 
 
-        if output_dir == None:
-            output_dir = "~/"
+            if output_dir == None:
+                output_dir = "~/"
 
-        if output_file == None:
-            output_file = f"Wassertein_hull_{type}_{time}s.png"
-        output_file = output_dir+output_file
-        
-        
-        plt.savefig(output_file)
+            if output_file == None:
+                output_file = f"Wassertein_hull_{type}_{time}s.png"
+            output_file = output_dir+output_file
+            
+            
+            plt.savefig(output_file)
         plt.close(fig)
 
     return W_rels, round(fraction,3)

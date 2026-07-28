@@ -32,11 +32,11 @@ DONE!
 from config import tail_config, magnetopause_config
 
 cfg = tail_config()
-
+#cfg = magnetopause_config()
 #make changes to config file variables if needed
 
-cfg.start_time = 1340
-cfg.end_time = 1372
+cfg.start_time = 1359
+cfg.end_time = 1361
 cfg.t_ref = 1360
 #cfg.rbf_eps_method = "LOOCV"
 #Load the data and move the centers 
@@ -64,7 +64,11 @@ rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data(df=df, 
 import plotting
 
 time = 1360
-
+"""
 plotting.plot_vlas_RBF_error(time = time, df = df, cfg=cfg, rbf=rbf, pos_cols=included_pos_cols, 
                              included_sc=included_sc, output_dir= "./", ref_plane_streak=False, 
                              output_file=f"RBF_recon_data_{cfg.start_time}-{cfg.end_time}s_t_ref_{cfg.t_ref}_tau_{time}_eps_inv.png")
+"""
+wass = plotting.Wasserstein_Hull(time = time, df= df, rbf = rbf, cfg=cfg, pos_cols=pos_cols,
+                                  save = True, output_dir="./", output_file = f"Wasserstein_dist_{cfg.start_time}-{cfg.end_time}_at_{cfg.t_ref}") 
+print(wass)
