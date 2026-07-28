@@ -36,7 +36,7 @@ rotation = 0 #45 rad is about 58 degrees
 trans =[-27,3,0.5]
 
 def get_sc_locations(rotation, translation,axis = "z", 
-                     in_scl=7, scale_constellation=1.0):
+                     in_scl=7, scale_constellation=1.0, in_m = False):
    
     outer = np.array([
         [0, 0, 0],
@@ -56,10 +56,15 @@ def get_sc_locations(rotation, translation,axis = "z",
         v_trans = translate_vec(v_rot, translation)
         sc_locs.append(v_trans)
 
-    return np.vstack(sc_locs)
+    sc_locs = np.vstack(sc_locs)
+
+    if in_m:
+        sc_locs *=R_E
+
+    return sc_locs
 
 
 if __name__ == "__main__":
-    points = get_sc_locations(rotation=58,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1)
+    points = get_sc_locations(rotation=45,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1, in_m=True)
     print(points)
     pass

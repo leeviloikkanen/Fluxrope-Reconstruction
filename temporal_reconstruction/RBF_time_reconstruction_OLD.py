@@ -23,10 +23,10 @@ from flow_type import flow_type
 
 
 #Shared info
-vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
-b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
-#vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv"
-#b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv"
+#vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv"
+#b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv"
+vg_v_file = "/home/leeviloi/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv"
+b_field_file = "/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv"
 #df_v = pd.read_csv(vg_v_file)
 #df = pd.read_csv(b_field_file)
 
@@ -38,7 +38,7 @@ R_e = 6371000
 output_dir ="/home/leeviloi/fluxrope_thesis/timeseries_tail/"
 
 #STARTING SC locations 
-
+"""
 sc_init = {
     "sc1": np.array([-27.0, 3.0, 0.5]) * R_e,
     "sc2": np.array([-26.0, 3.0, 1.5]) * R_e,
@@ -58,9 +58,11 @@ sc_init = {
     "sc6": np.array([5.96977399, -10.81345061, -1.07142857]) * R_e,
     "sc7": np.array([6.18031801, -10.94343409, -1.07142857]) * R_e,
 }
-"""
-flow = flow_type(sc_init, vg_v_file, b_field_file)
-t_ref = 1372
+
+flow = flow_type(sc_init, vg_v_file, b_field_file, start_time=1420, end_time=1452)
+
+t_ref = 1452
+#t_ref = 1372
 pos_cols, B_cols= flow.steady_flow_velocity(t_ref=t_ref)
 
 df = flow.df
@@ -164,8 +166,6 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour", kernel = "mult
     )
 
     return rbf, included_pos_cols, included_B_cols, included_sc
-
-
 
 rbf, included_pos_cols, included_B_cols, included_sc =  RBF_missing_data()
 
@@ -508,8 +508,12 @@ def plot_vlas_RBF_error(time, save = True, rel_error = True, L_Re = 1.2, output_
 
         time_interpolator = pt.calculations.VlsvTInterpolator(vlsvReaders_list = file_readers)
 
+        #This is currently way too in effective for large amount files even when the desired streakline is close to the reference time
+        #Do something like if t_ref > time: then forward integration till that time from time only/could use the pathlines here
+        #and if time < t_ref the backwards integration till that time
+
         streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
-                                                            points_per = 1, method = "RK4", tracked_vars = ["vg_b_vol"])
+                                                            points_per = 1, method = "RK4")
         i_rel = streakobj._time_to_idx(time = df["Timeframe"].iloc[-1])
         j_rel = streakobj._time_to_idx(time = time)
         ref_points = streakobj.M[:,i_rel,j_rel]
@@ -902,14 +906,8 @@ if __name__ == "__main__":
     streakobj = pt.calculations.fieldtracer.streaklines(vlsvTObject = time_interpolator, seed_points = injection_points, direction = "+",dt_step = 0.1, 
                                                         points_per = 10, method = "RK4", tracked_vars = ["vg_b_vol"])
     """
-    #for time in range(1351,1361,3): 
-
-    #    plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}_cutoff.png")
-
-    #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
-    #for time in times:
-    #plot_rbf_slices(time=1360, output_dir="./")
-    time = 1442
-    output_dir = "/home/leeviloi/fluxrope_thesis/timeseries_magnetopause/time_ref_1452_only_fwd/"
-    #plot_vlas_RBF_error(time=time, output_dir=output_dir, output_file=f"vlas_rbf_reconstruction_ref_time_1452s_tau_time_{time}s", ref_plane_streak= True)
-   
+    #output_dir = "/home/leeviloi/fluxrope_thesis/timeseries_magnetopause/perfect_streakline_measured_B/"
+    output_dir = "./"
+    time = 1442   
+    plot_vlas_RBF_error(time=time, output_dir=output_dir, output_file=f"vlas_rbf_reconstruction_ref_time_1452s_tau_time_{time}s_perfect_streak", ref_plane_streak= False)
+    
