@@ -9,7 +9,7 @@ sys.path.insert(0, "/home/leeviloi/analysator-dev")
 import analysator as pt; print(pt.__file__)
 import numpy as np
 import csv
-from rotation_matrix import get_sc_locations
+from scripts.rotation_matrix import get_sc_locations
 #Virtual spacecraft (SC) locations 
 #Multiply by R_e is coordinates in R_e 
 R_e = 6371000
