@@ -14,7 +14,7 @@ from scipy.stats import wasserstein_distance
 import scipy
 
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
-import analysator as pt; print(pt.__file__)
+import analysator as pt;# print(pt.__file__)
 
 from config import Config
 
@@ -115,7 +115,7 @@ def plot_vlas_slices(time, cfg:Config, nx = 200, ny = 200, L_Re = 1.2, output_di
 
     return    
 
-def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None):
+def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_Re = 1.2, output_dir = None, output_file = None, background = "out_comp"):
     """
     Plots the RBF reconstruction at the bary center of the spacecraft constellation
 
@@ -146,7 +146,12 @@ def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_
         C1, C2, U, V, W = data
         
         mag = np.hypot(U, V)
-        cf  = ax.contourf(C1, C2, W, 30, cmap="coolwarm")
+        if background == "out_comp":
+
+            cf  = ax.contourf(C1, C2, W, 30, cmap="coolwarm")
+        elif background == "mag":
+            full_mag = np.linalg.norm(np.stack([U, V, W]), axis=0)
+            cf = ax.contourf(C1, C2, full_mag, 30, cmap="coolwarm")
         ax.streamplot(C1, C2, U, V,
                       color=mag, cmap="magma", density=1.5, linewidth=0.5)
         if title == "X-Y":
@@ -185,7 +190,7 @@ def plot_rbf_slices(time, df, rbf, cfg:Config, pos_cols , nx = 200, ny = 200, L_
     return
 
 def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save = True, rel_error = True, L_Re = 1.2, output_dir = None, output_file = None, 
-                        nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False, stream_color = True):
+                        nx = 200, ny = 200, err_vmax = 1.5e-8, ref_plane_streak = False, stream_color = True, background = "out_comp"):
     """
     Creates a 3x3 plot of countours  (First row Vlasiator xy, xz and yz planes with streamlines,
     Second row RBF xy, xz, yz planes with streamliens, Third row point-wise error comparison of 
@@ -204,6 +209,8 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
     
     """
     #Vlasitor DATA
+    if background == "mag_log":
+        from matplotlib.colors import LogNorm
     
     if ref_plane_streak:
         #measures at advected SC locations at the refrence time
@@ -269,6 +276,21 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
     
     rbf_planes = [XY_rbf,XZ_rbf,YZ_rbf]
 
+    def _to_nT(plane):
+        P, Q, Bx, By, Bz = plane
+        return (P, Q, Bx*1e9, By*1e9, Bz*1e9)
+
+    vlas_planes = [_to_nT(p) for p in vlas_planes]
+    rbf_planes  = [_to_nT(p) for p in rbf_planes]
+
+    plane_names = ["xy", "xz", "yz"]  
+    component_map = {
+        "xy": {"Bx": 2, "By": 3, "Bz": 4},
+        "xz": {"Bx": 2, "Bz": 3, "By": 4},
+        "yz": {"By": 2, "Bz": 3, "Bx": 4},
+    }
+    component_backgrounds = ("Bx", "By", "Bz")
+
     fig, axes = plt.subplots(3,3,figsize = (13,11), constrained_layout=True)
     fig.dpi = 500
     panels = [
@@ -292,8 +314,40 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
 
     clus_size = 20
 
+    if background in ("mag", "mag_log"):
+        def _mag(plane):
+            m = np.linalg.norm(np.stack([plane[2], plane[3], plane[4]]), axis=0)
+            return m
+
+        all_mags = [_mag(p) for p in vlas_planes] + [_mag(p) for p in rbf_planes]
+        combined = np.concatenate([m.ravel() for m in all_mags])
+
+        if background == "mag_log":
+            mag_vmin, mag_vmax = combined[combined > 0].min(), combined.max()
+            mag_norm = LogNorm(vmin=mag_vmin, vmax=mag_vmax)
+            mag_levels = np.logspace(np.log10(mag_vmin), np.log10(mag_vmax), 30)
+            mag_unit_lbl = "|B| (nT)"
+        else:
+            mag_vmin, mag_vmax = combined.min(), combined.max()
+            mag_norm = mpl.colors.Normalize(vmin=mag_vmin, vmax=mag_vmax)
+            mag_levels = np.linspace(mag_vmin, mag_vmax, 30)
+            mag_unit_lbl = "|B| (nT)"
+    elif background in component_backgrounds:
+        all_comp = []
+        for pn, vp, rp in zip(plane_names, vlas_planes, rbf_planes):
+            idx = component_map[pn][background]
+            all_comp.append(vp[idx])
+            all_comp.append(rp[idx])
+        combined = np.concatenate([c.ravel() for c in all_comp])
+        comp_absmax = np.nanmax(np.abs(combined))
+
+        mag_norm = mpl.colors.CenteredNorm(vcenter=0.0, halfrange=comp_absmax)
+        mag_levels = np.linspace(-comp_absmax, comp_absmax, 31)
+        mag_unit_lbl = f"$B_{{{background[-1]}}}$ (nT)"
+
     for i, (vlas_plane,rbf_plane, panel) in enumerate(zip(vlas_planes,rbf_planes,panels)):
 
+        plane_name = plane_names[i]
         #Component naming here wrong but makes no difference with absolute error
         Pr, Qr, Bxr, Byr, Bzr = rbf_plane
         Pv, Qv, Bxv, Byv, Bzv = vlas_plane    
@@ -314,14 +368,32 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         #
         #Vlasiator Plotting
         #
-        cont_0 = axes[0,i].contourf(Pv,Qv,vlas_plane[-1], 30, cmap="coolwarm")
+        if background == "out_comp":
+            # Center the diverging colormap on 0, sharing scale with the RBF panel below
+            out_comp_absmax = np.nanmax(np.abs(np.concatenate([vlas_plane[-1].ravel(),
+                                                                rbf_plane[-1].ravel()])))
+            out_comp_norm = mpl.colors.CenteredNorm(vcenter=0.0, halfrange=out_comp_absmax)
+            cont_0 = axes[0,i].contourf(Pv, Qv, vlas_plane[-1], 30, cmap="coolwarm", norm=out_comp_norm)
+
+        elif background == "mag":
+            full_mag = np.linalg.norm(np.stack([vlas_plane[2], vlas_plane[3], vlas_plane[4]]), axis=0)
+            cont_0 = axes[0,i].contourf(Pv, Qv, full_mag, levels=mag_levels, cmap="coolwarm", norm=mag_norm)
+
+        elif background == "mag_log":
+            full_mag = np.linalg.norm(np.stack([vlas_plane[2], vlas_plane[3], vlas_plane[4]]), axis=0)
+            cont_0 = axes[0,i].contourf(Pv, Qv, full_mag, levels=mag_levels, cmap="coolwarm", norm=mag_norm)
+
+        elif background in component_backgrounds:
+            comp_idx = component_map[plane_name][background]
+            cont_0 = axes[0,i].contourf(Pv, Qv, vlas_plane[comp_idx], levels=mag_levels, cmap="coolwarm", norm=mag_norm)
+
         if stream_color:
             speed = np.hypot(vlas_plane[2], vlas_plane[3])
             axes[0,i].streamplot(Pv, Qv, vlas_plane[2], vlas_plane[3],
                         color=speed, cmap="magma", density = 2, linewidth = 0.4)
         else:
             axes[0,i].streamplot(Pv, Qv, vlas_plane[2], vlas_plane[3],
-                                 color = "k", density = 2, linewidth = 0.4)    
+                                 color = "k", density = 1.5, linewidth = 0.4)    
         if lab1 == "X":             
             u_v = init_pts[:,0]
             u_r = cluster[:,0] 
@@ -354,8 +426,9 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         u_v, v_v = scatter_mask(u_v, v_v, Pv, Qv)
         u_r, v_r = scatter_mask(u_r, v_r, Pr, Qr)
 
-        cbar = fig.colorbar(cont_0, ax=axes[0,i], orientation="vertical", shrink = 0.8)
-        cbar.set_label(f"$B_{lab3}$")
+        if background == "out_comp":
+            cbar = fig.colorbar(cont_0, ax=axes[0,i], orientation="vertical", shrink = 0.8)
+            cbar.set_label(f"$B_{lab3}$")
         axes[0,i].scatter(u_v, v_v, c="k", s=clus_size, label="spacecraft")
         axes[0,i].margins(0)
         #axes[0,i].set_xlabel(f"{lab1}  (m)")
@@ -367,18 +440,33 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         #
         #RBF plotting
         #
-        cont_1 = axes[1,i].contourf(Pr,Qr,rbf_plane[-1], 30, cmap="coolwarm")
+        
+        if background == "out_comp":
+            cont_1 = axes[1,i].contourf(Pr, Qr, rbf_plane[-1], 30, cmap="coolwarm", norm=out_comp_norm)
+
+        elif background == "mag":
+            full_mag = np.linalg.norm(np.stack([rbf_plane[2], rbf_plane[3], rbf_plane[4]]), axis=0)
+            cont_1 = axes[1,i].contourf(Pr, Qr, full_mag, levels=mag_levels, cmap="coolwarm", norm=mag_norm)
+
+        elif background == "mag_log":
+            full_mag = np.linalg.norm(np.stack([rbf_plane[2], rbf_plane[3], rbf_plane[4]]), axis=0)
+            cont_1 = axes[1,i].contourf(Pr, Qr, full_mag, levels=mag_levels, cmap="coolwarm", norm=mag_norm)
+        elif background in component_backgrounds:
+            comp_idx = component_map[plane_name][background]
+            cont_1 = axes[1,i].contourf(Pr, Qr, rbf_plane[comp_idx], levels=mag_levels, cmap="coolwarm", norm=mag_norm)             
+      
         if stream_color:
             speed = np.hypot(rbf_plane[2], rbf_plane[3])
             axes[1,i].streamplot(Pr, Qr, rbf_plane[2], rbf_plane[3],
                         color=speed, cmap="magma", density = 2, linewidth = 0.4)
         else:
             sp = axes[1,i].streamplot(Pr, Qr, rbf_plane[2], rbf_plane[3],
-                                color = "k", density = 2, linewidth = 0.4)
+                                color = "k", density = 1.5, linewidth = 0.4)
             
-        
-        cbar = fig.colorbar(cont_1, ax=axes[1,i], orientation="vertical", shrink = 0.8)
-        cbar.set_label(f"$B_{lab3}$")
+        if background == "out_comp":
+            cbar = fig.colorbar(cont_1, ax=axes[1,i], orientation="vertical", shrink = 0.8)
+            cbar.set_label(f"$B_{lab3}$")
+
         axes[1,i].scatter(u_r, v_r, c="k", s=clus_size, label="spacecraft")
         axes[1,i].margins(0)
         #axes[1,i].set_xlabel(f"{lab1}  (10³ km)")
@@ -400,9 +488,15 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         axes[2,0].legend(loc="upper right",fontsize="small")
     sm = mpl.cm.ScalarMappable(cmap="viridis",
                             norm=norm)
-
+    if background in ("mag", "mag_log", *component_backgrounds):
+        cmap_used = "coolwarm"
+        sm_mag = mpl.cm.ScalarMappable(cmap=cmap_used, norm=mag_norm)
+        fig.colorbar(sm_mag, ax=axes[0:2,:].ravel().tolist(),
+                    orientation="vertical", label=mag_unit_lbl, shrink=1.0, aspect=40)
+        
     fig.colorbar(sm, ax=axes[2,:].ravel().tolist(),
-                orientation="vertical", label=error_lbl, shrink = 0.8)
+             orientation="vertical", label=error_lbl, shrink=1.0, aspect=20)
+    
     #Label each row
     row_y = [0.96, 0.64, 0.32]  
 
@@ -428,6 +522,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         plt.savefig(output_file)    
         plt.close()
     return
+
 
 def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save = True, buffer = 0, error_cutoff = 10, info = True, output_dir =None, output_file =None):
     """
@@ -515,18 +610,18 @@ def Wasserstein_Hull(time, df, rbf, cfg:Config, pos_cols, type = "filled", save 
             ax.legend()
             ax.grid(alpha=0.3)
 
-            fig.suptitle(f"Component distributions  t={time}s")
+        fig.suptitle(f"Component distributions  t={time}s")
 
 
-            if output_dir == None:
-                output_dir = "~/"
+        if output_dir == None:
+            output_dir = "~/"
 
-            if output_file == None:
-                output_file = f"Wassertein_hull_{type}_{time}s.png"
-            output_file = output_dir+output_file
+        if output_file == None:
+            output_file = f"Wassertein_hull_{type}_{time}s.png"
+        output_file = output_dir+output_file
             
             
-            plt.savefig(output_file)
+        plt.savefig(output_file)
         plt.close(fig)
 
     return W_rels, round(fraction,3)
@@ -599,5 +694,21 @@ def Wasserstein_sphere(time, L_RE = 1.2, info = True, save = True):
     within the sphere. 
     Plot the distributions of values 
     return W_rels, Rel_error --> [W_rel_x, W_rel_y, W_rel_z], Rel_error 
-    """
+    """ 
+    
+
     return
+
+def full_flow_analysis(cfg: Config):
+    import pandas as pd
+
+    t_ref = cfg.t_ref
+
+     
+    df = pd.read_csv(cfg.b_field_file)
+    times = df["Timeframe"]
+    
+    
+
+    return
+

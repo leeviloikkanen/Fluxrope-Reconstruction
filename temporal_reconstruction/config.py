@@ -17,9 +17,9 @@ class Config:
     bulk_path: str = "/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"
     output_dir: str = "./"
 
-    t_ref: float = -1
-    start_time:float = None
-    end_time: float = None 
+    t_ref: int = -1
+    start_time: int = None
+    end_time: int = None 
 
     sc_init: dict = field(default_factory=dict)
 
@@ -37,7 +37,7 @@ def tail_config():
     Configuration for a magnetotail fluxrope that passes over the SC constellation between 
     1340-1372s in the Vlasiator FHA simulation run.
 
-    The constellation is (near) alinged with the flow direction though the flux rope axis is 
+    The constellation is (near) aligned with the flow direction though the flux rope axis is 
     (near) perpendicular direction of travel
     """
     return Config(
@@ -45,6 +45,8 @@ def tail_config():
         b_field_file= "./temporal_reconstruction/data/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv",
         output_dir="./",
         t_ref = 1372,
+        start_time=1340,
+        end_time=1372,
         sc_init = {
             "sc1": np.array([-27.0, 3.0, 0.5]) * R_E,
             "sc2": np.array([-26.0, 3.0, 1.5]) * R_E,
@@ -62,7 +64,7 @@ def magnetopause_config():
     Configuration for dayside magnetopause fluxrope that passes over the SC constellation between
     1400-1500s in the Vlasiator FHA simulation run. 
 
-    The constellation and flux rope axis are a both (near) parrallel to the flow direction.
+    The constellation and flux rope axis are a both (near) parallel to the flow direction.
     """ 
     return Config(
         vg_v_file="./temporal_reconstruction/data/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv",

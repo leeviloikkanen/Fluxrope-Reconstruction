@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import sys
 sys.path.insert(0, "/home/leeviloi/analysator-dev")
-import analysator as pt; print(pt.__file__)
+import analysator as pt; #print(pt.__file__)
 from config import Config
 R_E = 6371000
 
