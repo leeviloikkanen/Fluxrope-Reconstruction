@@ -6,6 +6,8 @@ Reason for this is that with multiple runs it will be difficult to remember all 
 """
 
 from dataclasses import dataclass, field
+from typing import List
+
 import numpy as np
 R_E = 6371000
 
@@ -26,6 +28,9 @@ class Config:
     rbf_kernel: str = "multiquadric"
     rbf_eps_method: str = "neighbour"
     rbf_smoothing: float = 0.0
+    missing_sc: List[str] = None
+
+    radius:float = 1.2
 
     def sc_names(self):
         return list(self.sc_init.keys())
@@ -59,6 +64,44 @@ def tail_config():
 
     )
 
+def tail_flipped_config():
+    return Config(
+        vg_v_file="/home/leeviloi/Fluxrope-Reconstruction/temporal_reconstruction/data/plas_obs_vir_vg_v_full_tail_z=0.5_1330-1380_flipped_GOOD.csv",
+        b_field_file="/home/leeviloi/Fluxrope-Reconstruction/temporal_reconstruction/data/plas_obs_vg_b_timeseries_tail_z=0.5_1330-1380s_flipped.csv",
+        t_ref=1360,
+        start_time=1330,
+        end_time=1380,
+        sc_init = {
+            "sc1": np.array([-27.0, 3.0, 0.5]) * R_E,
+            "sc2": np.array([-26.0, 3.0, -0.5]) * R_E,
+            "sc3": np.array([-26.0, 2.1339746, 1.0]) * R_E,
+            "sc4": np.array([-26.0, 3.8660254, 1.0]) * R_E,
+            "sc5": np.array([-26.85714286, 3.0, 0.35714286]) * R_E,
+            "sc6": np.array([-26.85714286, 2.87628209, 0.57142857]) * R_E,
+            "sc7": np.array([-26.85714286, 3.12371791, 0.57142857]) * R_E,
+        },
+
+    )
+
+def tail_flipped_centered_config():
+    return Config(
+        vg_v_file="/home/leeviloi/Fluxrope-Reconstruction/temporal_reconstruction/data/plas_obs_vir_vg_v_full_tail_z=0.8_1330-1380_flipped_GOOD.csv",
+        b_field_file="/home/leeviloi/Fluxrope-Reconstruction/temporal_reconstruction/data/plas_obs_vg_b_timeseries_tail_z=0.8_1330-1380s_flipped.csv",
+        t_ref=1360,
+        start_time=1330,
+        end_time=1380,
+        sc_init = {
+            "sc1": np.array([-27.0, 3.0, 0.8]) * R_E,
+            "sc2": np.array([-26.0, 3.0, -0.2]) * R_E,
+            "sc3": np.array([-26.0, 2.1339746, 1.3]) * R_E,
+            "sc4": np.array([-26.0, 3.8660254, 1.3]) * R_E,
+            "sc5": np.array([-26.85714286, 3.0, 0.65714286]) * R_E,
+            "sc6": np.array([-26.85714286, 2.87628209, 0.87142857]) * R_E,
+            "sc7": np.array([-26.85714286, 3.12371791, 0.87142857]) * R_E,
+        },
+
+    )
+
 def magnetopause_config():
     """
     Configuration for dayside magnetopause fluxrope that passes over the SC constellation between
@@ -70,8 +113,8 @@ def magnetopause_config():
         vg_v_file="./temporal_reconstruction/data/plas_obs_vir_vg_v_full_magnetopause_z=-1_1400-1500_GOOD.csv",
         b_field_file="./temporal_reconstruction/data/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv",
         t_ref= 1452,
-        start_time = 1420,
-        end_time = 1452,
+        start_time = 1400,
+        end_time = 1500,
         sc_init = {
             "sc1": np.array([6.0, -11.0, -1.0]) * R_E,
             "sc2": np.array([6.52532199, -10.14909648,  0.0]) * R_E,

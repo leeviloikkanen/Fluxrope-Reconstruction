@@ -65,6 +65,6 @@ def get_sc_locations(rotation, translation,axis = "z",
 
 
 if __name__ == "__main__":
-    points = get_sc_locations(rotation=45,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1, in_m=True)
+    points = get_sc_locations(rotation=np.pi,axis="x",translation=[-27, 3, 0.5], in_scl=7,scale_constellation=1, in_m=False)
     print(points)
     pass

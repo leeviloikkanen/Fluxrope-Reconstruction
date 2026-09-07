@@ -42,11 +42,11 @@ sc4 = np.array([7.26222606, -10.60403866, -1.5]) * R_e
 sc5 = np.array([6.075046, -10.87844235, -0.85714286]) * R_e
 sc6 = np.array([5.96977399, -10.81345061, -1.07142857]) * R_e
 sc7 = np.array([6.18031801, -10.94343409, -1.07142857]) * R_e
-
+"""
 points = [sc1,sc2,sc3,sc4,sc5,sc6,sc7]
 """
-points = get_sc_locations(rotation=45,translation=[6.0, -11.0, -1.0], in_scl=7,scale_constellation=1)
-"""
+points = get_sc_locations(rotation=np.pi, axis="x",translation=[-27, 3.0, 0.8], in_scl=7,scale_constellation=1, in_m=True)
+
 #Create a linspace of points for each spacecrafts trajectory based on start and end point of mothercraft
 #Start and end points given in R_e (6371km)
 def generate_constellation(N, points, start_point, end_point):
@@ -94,7 +94,7 @@ def generate_constellation(N, points, start_point, end_point):
     
     return constellation_positions
 
-def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
+def Timeseries(var = "vg_b_vol", start_time= 1330,end_time=1380):
     header = ['Timeframe']
     for sc in range(1,len(points)+1):
         header.extend([f"sc{sc}_vg_B_x", f"sc{sc}_vg_B_y", f"sc{sc}_vg_B_z"])
@@ -114,10 +114,11 @@ def Timeseries(var = "vg_b_vol", start_time= 1001,end_time=1613):
             vg_B_value = vlsvfile.read_interpolated_variable('vg_b_vol', point)
             vg_B_values.extend(vg_B_value)
         data.append(vg_B_values)
+        
 
 
     #create output .csv file 
-    output_filename = '/home/leeviloi/plas_obs_vg_b_timeseries_magnetopause_z=-1_1400-1500s.csv'
+    output_filename = '/home/leeviloi/Fluxrope-Reconstruction/temporal_reconstruction/data/plas_obs_vg_b_timeseries_tail_z=0.8_1330-1380s_flipped.csv'
     with open(output_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(data)
@@ -230,4 +231,6 @@ if __name__ == "__main__":
         points_scl = points_scl*R_e
         staticTime([6,-11,-1],[10,-5,-1],points=points_scl,N=100,scale=scale)
     """
-    streakline_B(1420, 1452, points, file_path= "./streakline_vlas_B_magnetopause_1420_1452.csv")
+    #streakline_B(1420, 1452, points, file_path= "./streakline_vlas_B_magnetopause_1420_1452.csv")
+    #Timeseries()
+    print(points)

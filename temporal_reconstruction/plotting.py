@@ -209,8 +209,8 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
     
     """
     #Vlasitor DATA
-    if background == "mag_log":
-        from matplotlib.colors import LogNorm
+    
+        
     
     if ref_plane_streak:
         #measures at advected SC locations at the refrence time
@@ -254,7 +254,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         XZ_vlas = sample_slice_vlas(cfg = cfg, vlsvfile = vlsvfile, plane = "xz", nx=nx, ny=ny, L_Re=L_Re)
         YZ_vlas = sample_slice_vlas(cfg = cfg, vlsvfile = vlsvfile, plane = "yz", nx=nx, ny=ny, L_Re=L_Re)
 
-        init_pts = np.vstack(list(cfg.sc_init.values()))
+        init_pts = np.vstack([cfg.sc_init[sc] for sc in included_sc])
         
     vlas_planes = [XY_vlas, XZ_vlas, YZ_vlas]
     
@@ -323,6 +323,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
         combined = np.concatenate([m.ravel() for m in all_mags])
 
         if background == "mag_log":
+            from matplotlib.colors import LogNorm
             mag_vmin, mag_vmax = combined[combined > 0].min(), combined.max()
             mag_norm = LogNorm(vmin=mag_vmin, vmax=mag_vmax)
             mag_levels = np.logspace(np.log10(mag_vmin), np.log10(mag_vmax), 30)
@@ -428,7 +429,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
 
         if background == "out_comp":
             cbar = fig.colorbar(cont_0, ax=axes[0,i], orientation="vertical", shrink = 0.8)
-            cbar.set_label(f"$B_{lab3}$")
+            cbar.set_label(f"$B_{lab3}$ (nT)")
         axes[0,i].scatter(u_v, v_v, c="k", s=clus_size, label="spacecraft")
         axes[0,i].margins(0)
         #axes[0,i].set_xlabel(f"{lab1}  (m)")
@@ -465,7 +466,7 @@ def plot_vlas_RBF_error(time, df, cfg:Config, rbf, pos_cols, included_sc, save =
             
         if background == "out_comp":
             cbar = fig.colorbar(cont_1, ax=axes[1,i], orientation="vertical", shrink = 0.8)
-            cbar.set_label(f"$B_{lab3}$")
+            cbar.set_label(f"$B_{lab3}$ (nT)")
 
         axes[1,i].scatter(u_r, v_r, c="k", s=clus_size, label="spacecraft")
         axes[1,i].margins(0)
@@ -687,7 +688,8 @@ def plot_Wass_time(df, save =True, error_cutoff = 20, flow_static_vel = None, ou
 
     return 
 
-def Wasserstein_sphere(time, L_RE = 1.2, info = True, save = True):
+def Wasserstein_sphere(time, df, cfg:Config, pos_cols, rbf, R_RE = 1.2, info = True, save = True, type = "filled",
+                       center = None, n = 100, output_dir = None, output_file = None, error_cutoff = 20, domain = False, domain_file = None):
     """
     Create sphere that encapsulates all necessary points at some barycenter along the streaklines
     Calculate the two Wasserstein distances and if info calculate also the point-wise error with some cutoff
@@ -695,9 +697,120 @@ def Wasserstein_sphere(time, L_RE = 1.2, info = True, save = True):
     Plot the distributions of values 
     return W_rels, Rel_error --> [W_rel_x, W_rel_y, W_rel_z], Rel_error 
     """ 
+    file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{time}.vlsv"
+    if info:
+        print(file)
+    vlsvfile = pt.vlsvfile.VlsvReader(file)
     
+    init_pts = np.vstack(list(cfg.sc_init.values()))
+    if center is not None:
+        center = center
+    else:
+        row = df[df["Timeframe"] == time].iloc[0]
+        cluster = row[pos_cols].to_numpy().reshape(-1,3)
+        center = cluster.mean(axis=0)
+        bary_init = init_pts.mean(axis=0)
 
-    return
+    #filtering grind into purely points within radius
+    radius = R_RE*R_e
+    ax = np.linspace(-radius, radius, n)
+    X, Y, Z = np.meshgrid(ax, ax, ax, indexing="ij")
+    off = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+    r = np.linalg.norm(off, axis=1)
+    off = off[(r <= radius)]
+    #off set the grid to the preferred center
+    pts = center + off
+
+    #Extract B values from Vlasiator and RBF
+    B_vlas = np.asarray(vlsvfile.read_interpolated_variable("vg_b_vol", pts))
+    B_rbf = np.asarray(rbf(pts))
+
+    #Calculate relative wasserstein distance and relative point-wise error
+    W_rels = []
+    for comp in range(3):
+        comp_vlas = B_vlas[:, comp]
+        comp_rbf = B_rbf[:, comp]
+        W1 = wasserstein_distance(comp_rbf, comp_vlas)
+        med = np.median(comp_vlas)
+        Wden = wasserstein_distance(comp_vlas, np.full_like(comp_vlas, med))
+        W_rels.append(float(round(W1/Wden, 4)))
+
+    if info:
+        dB = np.linalg.norm(B_rbf-B_vlas,axis=1)
+        B_vlas_mag = np.linalg.norm(B_vlas,axis=1)
+        valid = np.isfinite(dB) & np.isfinite(B_vlas_mag) & (B_vlas_mag > 0)
+
+        error_per = np.full_like(dB, np.nan)
+        error_per[valid] = 100 * dB[valid] / B_vlas_mag[valid]
+
+        fraction = np.count_nonzero(error_per[valid] < error_cutoff) / np.count_nonzero(valid)
+        print(f"Fraction of points with <{error_cutoff}%: {fraction:.3f}")
+        
+    if save:
+        labels = [r"$B_x$", r"$B_y$", r"$B_z$"]
+        fig, axes = plt.subplots(1, 3, figsize=(12,4))
+        for ax, lbl, vlas_comp, rbf_comp, W in zip(axes, labels, 
+                                        B_vlas.T, B_rbf.T, W_rels):
+            lo, hi = np.percentile(np.concatenate((vlas_comp, rbf_comp)), [0.5, 99.5])
+            bins = np.linspace(lo, hi, 41)
+            if type == "filled":
+                ax.hist(vlas_comp, bins=bins, alpha=0.5, label="Vlasiator")
+                ax.hist(rbf_comp, bins=bins, alpha=0.5, label="RBF")
+            else:
+                ax.hist(vlas_comp, bins=bins, histtype="step", label="Vlasiator")
+                ax.hist(rbf_comp, bins=bins, histtype="step", label="RBF")
+            ax.axvline(np.median(vlas_comp), ls="--", color="k")
+            ax.set_title(f"$W_{{rel}}$={W}")
+            ax.set_xlabel(f"{lbl}")
+            ax.legend()
+            ax.grid(alpha=0.3)
+
+        fig.suptitle(f"Component distributions  t={time}s")
+
+
+        if output_dir == None:
+            output_dir = "~/"
+
+        if output_file == None:
+            output_file = f"Wassertein_sphere_R={R_RE}_{time}s.png"
+        output_file = output_dir+output_file
+            
+            
+        plt.savefig(output_file)
+        plt.close(fig)
+    if domain: 
+        from matplotlib.patches import Circle
+        #Scaling to R_E for clarity
+        init_pts = np.asarray(init_pts)/R_e
+        center = np.asarray(center)/R_e
+        radius = radius/R_e
+        planes = [(0, 1, "X", "Y"), (0, 2, "X", "Z"), (1, 2, "Y", "Z")]
+        fig, axes = plt.subplots(1,3, figsize = (12,4))
+        for ax, (i, j, li, lj) in zip(axes, planes):
+        
+            ax.scatter(init_pts[:,i], init_pts[:,j], s=30, color="k",)
+    
+            ax.add_patch(Circle((center[i], center[j]), radius, fill=False, color="C0", lw=1.5))
+
+            ax.scatter(center[i], center[j], marker ="+", s = 60)
+
+            ax.set_xlabel(f"{li} [$R_E$]")
+            ax.set_ylabel(f"{lj} [$R_E$]")
+            ax.set_aspect("equal", adjustable="datalim")
+            ax.grid(alpha=0.3)
+
+        fig.suptitle("Sampling domain")
+        fig.tight_layout()
+        if domain_file is not None:
+            domain_file = output_dir + domain_file
+        else:
+            domain_file = output_dir+"sampling_domain.png"
+        plt.savefig(domain_file)
+        plt.close(fig)
+
+    return W_rels, round(fraction,3)
+
+
 
 def full_flow_analysis(cfg: Config):
     import pandas as pd
@@ -712,3 +825,6 @@ def full_flow_analysis(cfg: Config):
 
     return
 
+def domain_size(cfg:Config, rbf,df):
+
+    return
