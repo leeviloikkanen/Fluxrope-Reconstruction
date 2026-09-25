@@ -147,6 +147,7 @@ def RBF_missing_data(missing_sc = None, eps_method = "neighbour", kernel = "mult
 
     if eps_method == "neighbour":
         epsilon = np.median(dists[:, 1])
+        epsilon = 1/epsilon
     elif eps_method == "LOOCV":
         #This is very slow and seemingly choise of epsilon >1e-3 makes little difference 
         #run once and the manually set found epsilon.
@@ -907,7 +908,7 @@ if __name__ == "__main__":
     #    plot_vlas_RBF_error(time = time, output_dir="./", output_file=f"RBF_streakline_flow_reconstruction_release_{time}_cutoff.png")
     from export_rbf import export_rbf_vtk
 
-    export_rbf_vtk(df, rbf, included_pos_cols, output_path="./rbf_reconstruction_3D_errors_t_ref=1360.vts", use_convex_hull=True,export_sc_positions=False, t_ref = 1360)
+    export_rbf_vtk(df, rbf, included_pos_cols, output_path="./rbf_reconstruction_3D_errors_taylor_t_ref=1360_full.vts", use_convex_hull=False,export_sc_positions=False, t_ref = 1360)
 
     #plot_vlas_slices(time=1360.02, output_dir="./", output_file="vlasiator_along_streakline_slice_release_1360_time_1372.png")
     #for time in times:

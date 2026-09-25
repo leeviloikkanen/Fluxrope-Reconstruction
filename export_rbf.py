@@ -13,6 +13,40 @@ import analysator as pt
 
 
 R_E = 6.371e6  
+def taylor_at_seed(time, injection_points):
+    """
+    Calculate the taylor's hypothesis criterion at the given points.
+    Also returns B_mid, since it's already read here and reusable
+    for tracking the field along the path.
+    """
+    vlsvReaders = []
+    for i in range(-1, 2):
+        vlsvReaders.append(pt.vlsvfile.VlsvReader("/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/"+"bulk1.{}.vlsv".format(str(int(time+i)).zfill(7)),indexer="dict"))
+    t_prev = vlsvReaders[0].read_parameter("t")
+    t_mid  = vlsvReaders[1].read_parameter("t")
+    t_next = vlsvReaders[2].read_parameter("t")
+    dt = t_next - t_prev
+
+    B_prev = vlsvReaders[0].read_interpolated_variable("vg_b_vol", injection_points)
+    B_mid  = vlsvReaders[1].read_interpolated_variable("vg_b_vol", injection_points)
+    B_next = vlsvReaders[2].read_interpolated_variable("vg_b_vol", injection_points)
+
+    vel_mid = vlsvReaders[1].read_interpolated_variable("vg_v", injection_points)
+    j_mid = vlsvReaders[1].read_interpolated_variable("vg_jacobian_b", injection_points)
+    j_mid = j_mid.reshape(len(injection_points), 3, 3)
+
+    dB_dt = (B_next - B_prev) / dt
+    convection = np.einsum("...j,...ij->...i", vel_mid, j_mid)
+    residual = dB_dt + convection
+
+    dB_dt_mag = np.linalg.norm(dB_dt, axis=1)
+    convection_mag = np.linalg.norm(convection, axis=1)
+    residual_mag = np.linalg.norm(residual, axis=1)
+
+    eps_T = residual_mag / (dB_dt_mag + convection_mag)
+
+    return eps_T, B_mid
+
 
 def export_rbf_vtk(df,rbf,included_pos_cols,ny=100,nz=100,nx=200,padding_Re=0.5,output_path="rbf_reconstruction.vts",
                    export_sc_positions=True,use_convex_hull=False,hull_distance_Re=0.5,include_inside=True, t_ref = 1372):
@@ -88,6 +122,10 @@ def export_rbf_vtk(df,rbf,included_pos_cols,ny=100,nz=100,nx=200,padding_Re=0.5,
 
     B_vals[keep_mask] = rbf(pts_xyz[keep_mask])
 
+    taylor_vals = np.full((len(pts_xyz)),-1, dtype=np.float64)
+    eps_T, B_mid = taylor_at_seed(t_ref,pts_xyz[keep_mask])
+    taylor_vals[keep_mask] = eps_T
+
      #Point-wise error
 
     file = f"/wrk-vakka/group/spacephysics/vlasiator/3D/FHA/bulk1/bulk1.000{t_ref}.vlsv"
@@ -138,6 +176,11 @@ def export_rbf_vtk(df,rbf,included_pos_cols,ny=100,nz=100,nx=200,padding_Re=0.5,
     abs_error_arr = numpy_support.numpy_to_vtk(np.ascontiguousarray(abs_error_full), deep = True, array_type = vtk.VTK_DOUBLE)
     abs_error_arr.SetName("Abs_error")
     grid.GetPointData().AddArray(abs_error_arr)
+
+    #Taylor hypothesis values: 
+    taylor_arr = numpy_support.numpy_to_vtk(np.ascontiguousarray(taylor_vals), deep = True, array_type = vtk.VTK_DOUBLE)
+    taylor_arr.SetName("taylor_ratio")
+    grid.GetPointData().AddArray(taylor_arr)
 
     writer = vtk.vtkXMLStructuredGridWriter()
     writer.SetFileName(output_path)
