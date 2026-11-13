@@ -49,7 +49,7 @@ def tail_config():
         vg_v_file="./temporal_reconstruction/data/plas_obs_vir_vg_v_full_tail_right_Z=0.5_GOOD.csv",
         b_field_file= "./temporal_reconstruction/data/plas_obs_vg_b_timeseries_tail_right_z=0.5.csv",
         output_dir="./",
-        t_ref = 1372,
+        t_ref = 1360,
         start_time=1340,
         end_time=1372,
         sc_init = {

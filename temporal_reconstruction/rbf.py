@@ -36,7 +36,7 @@ def E_func(eps, centers, values, kernel, interpolator):
 
 #Slow own minimizatin function. Probably better to try use something like 
 #scipy.optimization.minimize. Values very small tho
-def find_eps(centers, values, kernel, interpolator, style = "log", start = -20, end = 20, Num = 200):
+def find_eps(centers, values, kernel, interpolator, style = "log", start = -8, end = -6, Num = 500):
     #Simple function to loop through epsilon values to find best one
     if style == "log":
         slots = np.logspace(start, end, Num)
@@ -120,7 +120,8 @@ def RBF_missing_data(df, sc_names, missing_sc = None, eps_method = "neighbour", 
         centers_inc, values_inc,
         epsilon=epsilon,
         kernel = kernel,
-        smoothing=0.0
+        smoothing=0.0,
+        degree = 1
     )
 
     return rbf, included_pos_cols, included_B_cols, included_sc

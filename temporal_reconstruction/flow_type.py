@@ -6,6 +6,7 @@ into the time varying RBF reconstruction.
 import numpy as np
 import pandas as pd
 
+
 class flow_type:
     def __init__(self, sc_init, velocity_path, B_field_path, start_time = None, end_time = None):
 
@@ -103,10 +104,19 @@ class flow_type:
     
     #THESE ARE FLOW MOVING THE DATA POINTS ALONG WITH IT AND STRUCTURE ASSUMED TO BE STABLE
     
-    def steady_flow_velocity(self, t_ref = None):
+    def steady_flow_velocity(self, t_ref = None, true_times = True):
         
-
-        times = self.df["Timeframe"].values
+        if true_times:
+            import sys
+            sys.path.insert(0, "/home/leeviloi/analysator-dev")
+            import analysator as pt;# print(pt.__file__)
+            times_int = self.df["Timeframe"].values
+            
+            read_time = lambda f: float(pt.vlsvfile.VlsvReader(f"/turso/group/spacephysics/vlasiator/data/L1/3D/FHA/bulk1/bulk1.000{f}.vlsv").read_parameter("time"))
+            times = np.array([read_time(f) for f in times_int])
+            t_ref = read_time(int(t_ref))
+        else:
+            times = self.df["Timeframe"].values
         if t_ref is None: 
             t_ref = times[-1]
 
